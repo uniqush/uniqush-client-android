@@ -1,5 +1,7 @@
 package org.uniqush.android;
 
+import android.content.Context;
+
 public class ResourceManager {
 	private String[] senderIds;
 	
@@ -12,7 +14,7 @@ public class ResourceManager {
 		return manager;
 	}
 	
-	public String[] getSenderIds() {
+	protected String[] getSenderIds(Context context) {
 		return senderIds;
 	}
 	

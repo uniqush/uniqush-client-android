@@ -15,6 +15,12 @@
  */
 package org.uniqush.android;
 
+import java.io.IOException;
+import java.util.HashMap;
+
+import org.uniqush.client.MessageCenter;
+import org.uniqush.client.MessageHandler;
+
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
@@ -34,7 +40,7 @@ public class GCMIntentService extends GCMBaseIntentService {
     
     @Override
     protected String[] getSenderIds (Context context) {
-    	String[] senderIds = ResourceManager.getMessageCenter().getSenderIds(context);
+    	String[] senderIds = ResourceManager.getResourceManager().getSenderIds(context);
         Log.i(TAG, "request sender ids:");
         
         for (String s : senderIds) {
@@ -46,6 +52,18 @@ public class GCMIntentService extends GCMBaseIntentService {
     @Override
     protected void onRegistered(Context context, String registrationId) {
         Log.i(TAG, "Device registered: regId = " + registrationId);
+        MessageCenter center = ResourceManager.getResourceManager().getMessageCenter();
+        HashMap<String, String> params = new HashMap<String, String>();
+        params.put("pushservicetype", "gcm");
+        params.put("regid", registrationId);
+        try {
+			center.subscribe(params);
+		} catch (Exception e) {
+			MessageHandler handler = ResourceManager.getResourceManager().getMessageHandler();
+			if (handler != null) {
+				handler.onError(e);
+			}
+		}
     }
 
     @Override

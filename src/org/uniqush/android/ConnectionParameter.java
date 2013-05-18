@@ -24,7 +24,27 @@ class ConnectionParameter {
 		this.handler = handler;
 	}
 	
+	@Override
+	public boolean equals(Object p) {
+		if (p == null) {
+			return false;
+		}
+		if (!(p instanceof ConnectionParameter)) {
+			return false;
+		}
+		ConnectionParameter param = (ConnectionParameter) p;
+		if (param.port != this.port) 
+			return false;
+		if (!param.service.endsWith(this.service))
+			return false;
+		if (!param.username.endsWith(this.username))
+			return false;
+		if (!param.address.endsWith(this.address))
+			return false;
+		return true;
+	}
 	
+	@Override
 	public String toString() {
 		// address:port:service:username
 		String idfmt = "%s:%d:%s:%s";

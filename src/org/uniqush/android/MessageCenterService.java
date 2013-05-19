@@ -103,16 +103,21 @@ public class MessageCenterService extends Service {
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
-		if (this.center == null) {
-			return;
-		}
-		this.center.stop();
-		if (this.receiverThread != null) {
-			try {
-				this.receiverThread.join();
-			} catch (InterruptedException e) {
+		Log.i(TAG, "onDestroy");
+		if (this.center != null) {
+			this.center.stop();
+			if (this.receiverThread != null) {
+				try {
+					this.receiverThread.join();
+				} catch (InterruptedException e) {
+				}
 			}
-			this.receiverThread = null;
+		}
+		this.receiverThread = null;
+		if (this.defaultParam != null) {
+			if (this.defaultParam.handler != null) {
+				this.defaultParam.handler.onServiceDestroyed();
+			}
 		}
 	}
 	

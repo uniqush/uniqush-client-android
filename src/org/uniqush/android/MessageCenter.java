@@ -101,8 +101,9 @@ public class MessageCenter {
 	 * 
 	 * @param context
 	 * @param id If id > 0, then any result (error or success) will be reported
-	 * through the handler's onResult() method. Otherwise (i.e. id <= 0), 
-	 * only error will be reported through the handler's onError() method.
+	 * through the handler's onResult() method with the id value of id.
+	 * Otherwise (i.e. id <= 0), only error will be reported through the
+	 * handler's onError() method.
 	 * @param address
 	 * @param port
 	 * @param publicKey The public key of the server.
@@ -134,19 +135,32 @@ public class MessageCenter {
 				username,
 				handler);
 		ResourceManager.getResourceManager().addConnectionParameter(param);
-		Intent intent = new Intent(context, MessageCenterService.class);
-		intent.putExtra("c", MessageCenterService.CMD_CONNECT);
-		intent.putExtra("connection", param.toString());
-		intent.putExtra("token", token);
-		intent.putExtra("id", id);
 		this.defaultParam = param;
 		this.defaultToken = token;
+		reconnect(context, id);
+	}
+	
+	/**
+	 * Reconnect the server with the parameters provided on the last call
+	 * to connect().
+	 * @param context
+	 * @param id If id > 0, then any result (error or success) will be reported
+	 * through the handler's onResult() method with the id value of id.
+	 * Otherwise (i.e. id <= 0), only error will be reported through the
+	 * handler's onError() method.
+	 */
+	public void reconnect(Context context, int id) {
+		Intent intent = new Intent(context, MessageCenterService.class);
+		intent.putExtra("c", MessageCenterService.CMD_CONNECT);
+		intent.putExtra("connection", this.defaultParam.toString());
+		intent.putExtra("token", this.defaultToken);
+		intent.putExtra("id", id);
 		context.startService(intent);
 	}
 	
 	/**
 	 * Change the token. This method will not re-connect the server with
-	 * the new token.
+	 * the new token. To re-connect the server, use reconnect().
 	 * @param newToken
 	 */
 	public void changeToken(String newToken) {

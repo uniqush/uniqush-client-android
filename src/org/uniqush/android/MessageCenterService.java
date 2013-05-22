@@ -165,8 +165,11 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 			Log.i(TAG, "null param");
 			return;
 		}
-		if (param.equals(this.defaultParam) && this.receiverThread != null) {
+		if (param.equals(this.defaultParam) &&
+				token.equals(this.defaultToken) &&
+				this.receiverThread != null) {
 			// The thread is still running. We don't need to re-connect.
+			// XXX better concurrency control
 			return;
 		}
 		

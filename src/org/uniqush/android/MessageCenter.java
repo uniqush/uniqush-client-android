@@ -20,6 +20,11 @@ public class MessageCenter {
 		}
 	}
 	
+	/**
+	 * Close the connection and stop the service. To save energy, the app
+	 * should call stop() if there is no message for a while.
+	 * @param context
+	 */
 	public void stop(Context context) {
 		Log.i(TAG, "stoping the service...");
 		Intent intent = new Intent(context, MessageCenterService.class);

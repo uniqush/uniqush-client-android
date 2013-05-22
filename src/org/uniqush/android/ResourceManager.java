@@ -1,13 +1,12 @@
 package org.uniqush.android;
 
-import java.util.HashMap;
+import java.util.Hashtable;
 import org.uniqush.client.MessageCenter;
-
 import android.util.Log;
 
 class ResourceManager {
 	private String[] senderIds;
-	private HashMap<String, ConnectionParameter> connMap;
+	private Hashtable<String, ConnectionParameter> connMap;
 	private MessageCenter center;
 	
 	private static String TAG = "UniqushResourceManager";
@@ -16,7 +15,6 @@ class ResourceManager {
 	//private String TAG = "ResourceManager";
 	
 	public static ResourceManager getResourceManager() {
-		Log.i(TAG, "get reouce manager");
 		if (manager == null) {
 			manager = new ResourceManager();
 		}
@@ -24,13 +22,11 @@ class ResourceManager {
 	}
 	
 	public void addConnectionParameter(ConnectionParameter param) {
-		Log.i(TAG, "add connection: " + param.toString());
 		connMap.put(param.toString(), param);
 	}
 	
 	public ConnectionParameter getConnectionParameter(String id) {
 		ConnectionParameter ret = connMap.get(id);
-		Log.i(TAG, "get connection: " + id + "; " + ret.toString());
 		return ret;
 	}
 	
@@ -58,7 +54,7 @@ class ResourceManager {
 
 	protected ResourceManager() {
 		this.senderIds = null;
-		this.connMap = new HashMap<String, ConnectionParameter>();
+		this.connMap = new Hashtable<String, ConnectionParameter>();
 		this.center = new MessageCenter();
 	}
 

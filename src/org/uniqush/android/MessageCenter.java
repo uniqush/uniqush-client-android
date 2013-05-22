@@ -56,6 +56,29 @@ public class MessageCenter {
 		context.startService(intent);
 	}
 	
+	/**
+	 * Asynchronously send the message to another user. The result will be reported
+	 * through the handler's onResult() method if id > 0.
+	 * 
+	 * The message is actually forwarded by the server. The server
+	 * may decline the forwarding request depending on the implementation
+	 * of the server.
+	 * 
+	 * NOTE: the method will return silently if connect() has never been called.
+	 * 
+	 * As long as connect() has been called once, users do not need to
+	 * worry about re-connection and other related issues. MessageCenter
+	 * will trigger another connection if the connection dropped or the
+	 * background service killed by the OS.
+	 * @param context
+	 * @param id If id > 0, then any result (error or success) will be reported
+	 * through the handler's onResult() method. Otherwise (i.e. id <= 0), 
+	 * only error will be reported through the handler's onError() method.
+	 * @param service
+	 * @param username
+	 * @param msg
+	 * @param ttl
+	 */
 	public void sendMessageToUser(Context context,
 			int id,
 			String service,
@@ -119,5 +142,14 @@ public class MessageCenter {
 		this.defaultParam = param;
 		this.defaultToken = token;
 		context.startService(intent);
+	}
+	
+	/**
+	 * Change the token. This method will not re-connect the server with
+	 * the new token.
+	 * @param newToken
+	 */
+	public void changeToken(String newToken) {
+		this.defaultToken = newToken;
 	}
 }

@@ -42,7 +42,7 @@ public class MessageCenterService extends Service {
 	
 	private ConnectionParameter defaultParam;
 	private String defaultToken;
-	private String TAG = "UniqushMessageCenter";
+	private String TAG = "UniqushMessageCenterService";
 	
 	protected final static int CMD_CONNECT = 1;
 	protected final static int CMD_SEND_MSG_TO_SERVER = 2;
@@ -61,26 +61,49 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 		int N = 3;
 		long time = 1000;
 		int id = params[0].intValue();
+		if (params.length > 1) {
+			N = params[1].intValue();
+		}
+		if (params.length > 2) {
+			time = params[2].intValue();
+		}
 		Exception error = null;
 		for (int i = 0; i < N; i++) {
+			Log.i(TAG, "try one more time. wait time: " + time);
 			try {
 				call();
 			} catch (InterruptedException e) {
 				return null;
-			} catch (Exception e) {
+			} catch (IOException e) {
 				try {
 					Thread.sleep(time);
 					time += (long) (Math.random()* time) << 1;
 					error = e;
-					reconnect(id);
+					
+					center.connect(defaultParam.address, defaultParam.port, defaultParam.service, defaultParam.username, defaultToken, defaultParam.publicKey, defaultParam.handler);
+
+					threadLock.acquireUninterruptibly();
+					receiverThread = new Thread(center);
+					receiverThread.start();
+					threadLock.release();
+					break;
+				} catch (IOException e1) {
+					error = e1;
 					continue;
+				} catch (LoginException e1) {
+					error = e;
+					break;
 				} catch (InterruptedException e1) {
 					error = e;
 					break;
 				}
+			} catch (LoginException e) {
+				error = e;
+				break;
 			}
 			break;
 		}
+		Log.i(TAG, "report result on " + id);
 		reportResult(id, error);
 		return null;
 	}
@@ -93,10 +116,6 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 		this.receiverThread = null;
 		this.threadLock = new Semaphore(1);
 		Log.i(TAG, "onCreate");
-	}
-	
-	private void reconnect(int id) {
-		this.connectToServer(id, this.defaultParam, this.defaultToken);
 	}
 	
 	private boolean reconnect(int id, Intent intent) {
@@ -208,12 +227,16 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 				threadLock.release();
 			}
 		};
-		task.execute(Integer.valueOf(id));
+		task.execute(Integer.valueOf(id), Integer.valueOf(2));
 	}
 	
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		super.onStartCommand(intent, flags, startId);
+		if (intent == null) {
+			this.stopSelf();
+			return START_NOT_STICKY;
+		}
 		int cmd = intent.getIntExtra("c", -1);
 		Log.i(TAG, "onStartCommand");
 		
@@ -238,6 +261,7 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 			if (msg != null) {
 				this.sendMessageToServer(id, msg);
 			}
+			break;
 		case MessageCenterService.CMD_SEND_MSG_TO_USER:
 			msg = (Message)intent.getSerializableExtra("msg");
 			String service = intent.getStringExtra("service");

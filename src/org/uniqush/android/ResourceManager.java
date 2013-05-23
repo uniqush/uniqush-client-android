@@ -25,10 +25,7 @@ class ResourceManager {
 	private Hashtable<String, ConnectionParameter> connMap;
 	private MessageCenter center;
 	
-	private static String TAG = "UniqushResourceManager";
 	protected static ResourceManager manager;
-	
-	//private String TAG = "ResourceManager";
 	
 	public static ResourceManager getResourceManager() {
 		if (manager == null) {

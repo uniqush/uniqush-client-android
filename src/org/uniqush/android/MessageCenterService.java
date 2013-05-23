@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.Semaphore;
 
 import javax.security.auth.login.LoginException;
 
@@ -37,6 +38,7 @@ public class MessageCenterService extends Service {
 	
 	private MessageCenter center;
 	private Thread receiverThread;
+	private Semaphore threadLock;
 	
 	private ConnectionParameter defaultParam;
 	private String defaultToken;
@@ -57,7 +59,7 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 	@Override
 	protected Void doInBackground(Integer... params) {
 		int N = 3;
-		long time = 6000;
+		long time = 1000;
 		int id = params[0].intValue();
 		Exception error = null;
 		for (int i = 0; i < N; i++) {
@@ -89,6 +91,7 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 		super.onCreate();
 		this.center = new MessageCenter();
 		this.receiverThread = null;
+		this.threadLock = new Semaphore(1);
 		Log.i(TAG, "onCreate");
 	}
 	
@@ -165,36 +168,44 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 			Log.i(TAG, "null param");
 			return;
 		}
+
+		threadLock.acquireUninterruptibly();
 		if (param.equals(this.defaultParam) &&
 				token.equals(this.defaultToken) &&
 				this.receiverThread != null) {
 			// The thread is still running. We don't need to re-connect.
-			// XXX better concurrency control
+			threadLock.release();
 			return;
 		}
-		
+
 		this.defaultParam = null;
 		this.defaultToken = null;
 		// There's another connection. Close it first.
 		if (this.receiverThread != null) {
+			threadLock.release();
 			this.center.stop();
 			try {
 				this.receiverThread.join();
 			} catch (InterruptedException e) {
 				return;
 			}
+		} else {
+			threadLock.release();
 		}
 		this.defaultParam = param;
 		this.defaultToken = token;
 		if (this.center == null) {
 			this.center = new MessageCenter();
 		}
-		receiverThread = new Thread(center);
 		AsyncTryWithExpBackOff task = new AsyncTryWithExpBackOff() {
 			@Override
 			protected void call() throws InterruptedException, IOException, LoginException {
 				center.connect(defaultParam.address, defaultParam.port, defaultParam.service, defaultParam.username, defaultToken, defaultParam.publicKey, defaultParam.handler);
+
+				threadLock.acquireUninterruptibly();
+				receiverThread = new Thread(center);
 				receiverThread.start();
+				threadLock.release();
 			}
 		};
 		task.execute(Integer.valueOf(id));
@@ -245,12 +256,14 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 		Log.i(TAG, "onDestroy");
 		if (this.center != null) {
 			this.center.stop();
+			this.threadLock.acquireUninterruptibly();
 			if (this.receiverThread != null) {
 				try {
 					this.receiverThread.join();
 				} catch (InterruptedException e) {
 				}
 			}
+			this.threadLock.release();
 		}
 		this.receiverThread = null;
 		if (this.defaultParam != null) {

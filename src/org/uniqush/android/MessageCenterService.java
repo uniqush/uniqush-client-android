@@ -18,6 +18,7 @@
 package org.uniqush.android;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -28,7 +29,10 @@ import javax.security.auth.login.LoginException;
 import org.uniqush.client.Message;
 import org.uniqush.client.MessageCenter;
 
+import com.google.android.gcm.GCMRegistrar;
+
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.IBinder;
@@ -42,6 +46,7 @@ public class MessageCenterService extends Service {
 	
 	private ConnectionParameter defaultParam;
 	private String defaultToken;
+	private String regId;
 	private String TAG = "UniqushMessageCenterService";
 	
 	protected final static int CMD_CONNECT = 1;
@@ -50,7 +55,10 @@ public class MessageCenterService extends Service {
 	protected final static int CMD_REQUEST_MSG = 4;
 	protected final static int CMD_CONFIG = 5;
 	protected final static int CMD_VISIBILITY = 6;
-	protected final static int CMD_MAX_CMD_ID = 7;
+	protected final static int CMD_UNSUBSCRIBE = 7;
+	protected final static int CMD_MAX_ID_REQUIRES_CONN = 8;
+	protected final static int CMD_SUBSCRIBE = 9;
+	protected final static int CMD_MAX_CMD_ID = 10;
 	
 
 abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
@@ -141,7 +149,7 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 	private void reportResult(int id, Exception e) {
 		if (this.defaultParam != null) {
 			if (this.defaultParam.handler != null) {
-				if (id <= 0) {
+				if (id <= 0 && e != null) {
 					this.defaultParam.handler.onError(e);
 				}
 				this.defaultParam.handler.onResult(id, e);
@@ -216,6 +224,9 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 		if (this.center == null) {
 			this.center = new MessageCenter();
 		}
+		
+		final Context context = this;
+		
 		AsyncTryWithExpBackOff task = new AsyncTryWithExpBackOff() {
 			@Override
 			protected void call() throws InterruptedException, IOException, LoginException {
@@ -225,9 +236,46 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 				receiverThread = new Thread(center);
 				receiverThread.start();
 				threadLock.release();
+				
+				if (regId != null) {
+
+					Log.i(TAG, "register on connect ");
+					final HashMap<String, String> params = new HashMap<String, String>(3);
+					params.put("pushservicetype", "gcm");
+					params.put("service", defaultParam.service);
+					params.put("subscriber", defaultParam.username);
+					params.put("regid", regId);
+					center.subscribe(params);
+					GCMRegistrar.setRegisteredOnServer(context, true);
+				}
 			}
 		};
 		task.execute(Integer.valueOf(id), Integer.valueOf(2));
+	}
+	
+	private void subscribe() {
+		if (this.regId == null) {
+			return;
+		}
+
+		Log.i(TAG, "register in subscribe() ");
+		final HashMap<String, String> params = new HashMap<String, String>(3);
+		params.put("pushservicetype", "gcm");
+		params.put("service", this.defaultParam.service);
+		params.put("subscriber", this.defaultParam.username);
+		params.put("regid", this.regId);
+		final Context context = this;
+		
+		AsyncTryWithExpBackOff task = new AsyncTryWithExpBackOff() {
+			@Override
+			protected void call() throws InterruptedException, IOException {
+				center.subscribe(params);
+				GCMRegistrar.setRegisteredOnServer(context, true);
+
+				Log.i(TAG, "registerED in subscribe() ");
+			}
+		};
+		task.execute(Integer.valueOf(0));
 	}
 	
 	@Override
@@ -247,10 +295,12 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 		}
 
 		int id = intent.getIntExtra("id", -1);
-		if (!this.reconnect(id, intent)) {
-			// cannot connect to the server.
-			this.stopSelf();
-			return START_NOT_STICKY;
+		if (cmd < MessageCenterService.CMD_MAX_ID_REQUIRES_CONN) {
+			if (!this.reconnect(id, intent)) {
+				// cannot connect to the server.
+				this.stopSelf();
+				return START_NOT_STICKY;
+			}
 		}
 		Message msg = null;
 		switch (cmd) {
@@ -270,6 +320,15 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 			if (msg != null && username != null) {
 				this.sendMessageToUser(id, service, username, msg, ttl);
 			}
+			break;
+		case MessageCenterService.CMD_SUBSCRIBE:
+			String regId = intent.getStringExtra("regId");
+			if (regId == null) {
+				break;
+			} else {
+				this.regId = regId;
+			}
+			this.subscribe();
 			break;
 		}
 		return START_STICKY;

@@ -46,8 +46,12 @@ public class GCMIntentService extends GCMBaseIntentService {
     }
 
     @Override
-    protected void onRegistered(Context context, String registrationId) {
-        Log.i(TAG, "Device registered: regId = " + registrationId);
+    protected void onRegistered(Context context, String regId) {
+        Log.i(TAG, "Device registered: regId = " + regId);
+		Intent intent = new Intent(context, MessageCenterService.class);
+		intent.putExtra("c", MessageCenterService.CMD_SUBSCRIBE);
+		intent.putExtra("regId", regId);
+		context.startService(intent);
     }
 
     @Override

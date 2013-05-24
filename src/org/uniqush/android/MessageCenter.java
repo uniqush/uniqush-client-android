@@ -21,6 +21,8 @@ import java.security.interfaces.RSAPublicKey;
 
 import org.uniqush.client.Message;
 
+import com.google.android.gcm.GCMRegistrar;
+
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
@@ -30,11 +32,17 @@ public class MessageCenter {
 	private static String TAG = "UniqushMessageCenter";
 	private ConnectionParameter defaultParam;
 	private String defaultToken;
+	private String[] senderIds;
 	
-	public MessageCenter(String ...senderIds) {
+	public MessageCenter(Context context, String ...senderIds) {
+		this.senderIds = new String[senderIds.length];
+		int i = 0;
 		for (String s : senderIds) {
+			this.senderIds[i] = new String(s);
+			i++;
 			ResourceManager.getResourceManager().setSenderIds(s);
 		}
+		GCMRegistrar.setRegisteredOnServer(context, false);
 	}
 	
 	/**
@@ -160,6 +168,22 @@ public class MessageCenter {
 		this.defaultParam = param;
 		this.defaultToken = token;
 		reconnect(context, id);
+
+		
+		String regId = GCMRegistrar.getRegistrationId(context);
+		if (regId.equals("")) {
+			Log.i(TAG, "not registered");
+			GCMRegistrar.register(context, senderIds);
+		} else {
+			if (!GCMRegistrar.isRegisteredOnServer(context)) {
+				Log.i(TAG, "not registered on server");
+				Intent intent = new Intent(context, MessageCenterService.class);
+				intent.putExtra("c", MessageCenterService.CMD_SUBSCRIBE);
+				intent.putExtra("regId", regId);
+				context.startService(intent);
+				return;
+			}
+		}
 	}
 	
 	/**

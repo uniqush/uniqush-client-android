@@ -19,9 +19,9 @@ package org.uniqush.android;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Iterator;
+/*import java.util.Iterator;
 import java.util.Map;
-import java.util.Map.Entry;
+import java.util.Map.Entry;*/
 import java.util.concurrent.Semaphore;
 
 import javax.security.auth.login.LoginException;
@@ -99,10 +99,10 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 					error = e1;
 					continue;
 				} catch (LoginException e1) {
-					error = e;
+					error = e1;
 					break;
 				} catch (InterruptedException e1) {
-					error = e;
+					error = e1;
 					break;
 				}
 			} catch (LoginException e) {
@@ -225,8 +225,6 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 			this.center = new MessageCenter();
 		}
 		
-		final Context context = this;
-		
 		AsyncTryWithExpBackOff task = new AsyncTryWithExpBackOff() {
 			@Override
 			protected void call() throws InterruptedException, IOException, LoginException {
@@ -238,40 +236,42 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 				threadLock.release();
 				
 				if (regId != null) {
-
-					Log.i(TAG, "register on connect ");
-					final HashMap<String, String> params = new HashMap<String, String>(3);
-					params.put("pushservicetype", "gcm");
-					params.put("service", defaultParam.service);
-					params.put("subscriber", defaultParam.username);
-					params.put("regid", regId);
-					center.subscribe(params);
-					GCMRegistrar.setRegisteredOnServer(context, true);
+					subscribe(regId);
 				}
 			}
 		};
 		task.execute(Integer.valueOf(id), Integer.valueOf(2));
 	}
 	
-	private void subscribe() {
-		if (this.regId == null) {
-			return;
-		}
-
-		Log.i(TAG, "register in subscribe() ");
+	private void subscribe(String regId) throws InterruptedException, IOException {
 		final HashMap<String, String> params = new HashMap<String, String>(3);
 		params.put("pushservicetype", "gcm");
 		params.put("service", this.defaultParam.service);
 		params.put("subscriber", this.defaultParam.username);
-		params.put("regid", this.regId);
-		final Context context = this;
+		params.put("regid", regId);
+		center.subscribe(params);
+		GCMRegistrar.setRegisteredOnServer(this, true);
+	}
+	
+	private void unsubscribe(String regId) throws InterruptedException, IOException {
+		final HashMap<String, String> params = new HashMap<String, String>(3);
+		params.put("pushservicetype", "gcm");
+		params.put("service", this.defaultParam.service);
+		params.put("subscriber", this.defaultParam.username);
+		params.put("regid", regId);
+		center.unsubscribe(params);
+		GCMRegistrar.setRegisteredOnServer(this, true);
+	}
+	
+	private void subscribe() {
+		if (this.regId == null) {
+			return;
+		}
 		
 		AsyncTryWithExpBackOff task = new AsyncTryWithExpBackOff() {
 			@Override
 			protected void call() throws InterruptedException, IOException {
-				center.subscribe(params);
-				GCMRegistrar.setRegisteredOnServer(context, true);
-
+				subscribe(regId);
 				Log.i(TAG, "registerED in subscribe() ");
 			}
 		};
@@ -357,7 +357,7 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 		super.onDestroy();
 	}
 	
-	private void printMap(Map<String, String> header) {
+/*	private void printMap(Map<String, String> header) {
 		Iterator<Entry<String,String>> iter = header.entrySet().iterator();
 		while (iter.hasNext()) {
 			Entry<String, String> entry = iter.next();
@@ -368,7 +368,7 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 	private void printMessage(Message msg) {
 		Map<String, String> header = msg.getHeader();
 		printMap(header);
-	}
+	}*/
 	
 	@Override
 	public IBinder onBind(Intent intent) {

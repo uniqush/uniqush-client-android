@@ -145,6 +145,7 @@ public class MessageCenter {
 	 * of the session key. In another word, it is not used to derive the
 	 * session key.
 	 * @param handler The message handler for the connection.
+	 * @param subscribe true if it wants to receive push notification from GCM.
 	 * NOTE: It is org.uniqush.android.MessageHandler, not org.uniqush.client.MessageHanlder.
 	 */
 	public void connectServer(Context context,
@@ -155,7 +156,8 @@ public class MessageCenter {
 			String service, 
 			String username, 
 			String token,
-			MessageHandler handler) {
+			MessageHandler handler,
+			boolean subscribe) {
 		
 		Log.i(TAG, "connect in message center");
 		ConnectionParameter param = new ConnectionParameter(address,
@@ -169,20 +171,10 @@ public class MessageCenter {
 		this.defaultToken = token;
 		reconnect(context, id);
 
-		
-		String regId = GCMRegistrar.getRegistrationId(context);
-		if (regId.equals("")) {
-			Log.i(TAG, "not registered");
-			GCMRegistrar.register(context, senderIds);
-		} else {
-			if (!GCMRegistrar.isRegisteredOnServer(context)) {
-				Log.i(TAG, "not registered on server");
-				Intent intent = new Intent(context, MessageCenterService.class);
-				intent.putExtra("c", MessageCenterService.CMD_SUBSCRIBE);
-				intent.putExtra("regId", regId);
-				context.startService(intent);
-				return;
-			}
+		if (subscribe) {
+			Intent intent = new Intent(context, MessageCenterService.class);
+			intent.putExtra("c", MessageCenterService.CMD_SUBSCRIBE);
+			context.startService(intent);
 		}
 	}
 	

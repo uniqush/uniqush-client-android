@@ -20,6 +20,7 @@ package org.uniqush.android;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.security.auth.login.LoginException;
 
@@ -35,109 +36,115 @@ import android.os.IBinder;
 import android.util.Log;
 
 public class MessageCenterService extends Service {
-	
+
 	private MessageCenter center;
 	private Thread receiverThread;
 	private Semaphore threadLock;
-	
+
 	private ConnectionParameter defaultParam;
 	private String defaultToken;
-	private String regId;
+	private AtomicBoolean shouldSubscribe;
 	private String TAG = "UniqushMessageCenterService";
-	
+
 	protected final static int CMD_CONNECT = 1;
 	protected final static int CMD_SEND_MSG_TO_SERVER = 2;
 	protected final static int CMD_SEND_MSG_TO_USER = 3;
 	protected final static int CMD_REQUEST_MSG = 4;
 	protected final static int CMD_CONFIG = 5;
 	protected final static int CMD_VISIBILITY = 6;
-	protected final static int CMD_UNSUBSCRIBE = 7;
-	protected final static int CMD_MAX_ID_REQUIRES_CONN = 8;
-	protected final static int CMD_SUBSCRIBE = 9;
+	protected final static int CMD_MAX_ID_REQUIRES_CONN = 7;
+	protected final static int CMD_SUBSCRIBE = 8;
+	protected final static int CMD_UNSUBSCRIBE = 9;
 	protected final static int CMD_MAX_CMD_ID = 10;
-	
 
-abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
-	abstract protected void call() throws InterruptedException, IOException, LoginException ;
-	
-	@Override
-	protected Void doInBackground(Integer... params) {
-		int N = 3;
-		long time = 1000;
-		int id = params[0].intValue();
-		if (params.length > 1) {
-			N = params[1].intValue();
-		}
-		if (params.length > 2) {
-			time = params[2].intValue();
-		}
-		Exception error = null;
-		for (int i = 0; i < N; i++) {
-			Log.i(TAG, "try one more time. wait time: " + time);
-			try {
-				call();
-			} catch (InterruptedException e) {
-				return null;
-			} catch (IOException e) {
+	abstract class AsyncTryWithExpBackOff extends
+			AsyncTask<Integer, Void, Void> {
+		abstract protected void call() throws InterruptedException,
+				IOException, LoginException;
+
+		@Override
+		protected Void doInBackground(Integer... params) {
+			int N = 3;
+			long time = 1000;
+			int id = params[0].intValue();
+			if (params.length > 1) {
+				N = params[1].intValue();
+			}
+			if (params.length > 2) {
+				time = params[2].intValue();
+			}
+			Exception error = null;
+			for (int i = 0; i < N; i++) {
+				Log.i(TAG, "try one more time. wait time: " + time);
 				try {
-					Thread.sleep(time);
-					time += (long) (Math.random()* time) << 1;
-					error = e;
-					
-					center.connect(defaultParam.address, defaultParam.port, defaultParam.service, defaultParam.username, defaultToken, defaultParam.publicKey, defaultParam.handler);
+					call();
+				} catch (InterruptedException e) {
+					return null;
+				} catch (IOException e) {
+					try {
+						Thread.sleep(time);
+						time += (long) (Math.random() * time) << 1;
+						error = e;
 
-					threadLock.acquireUninterruptibly();
-					receiverThread = new Thread(center);
-					receiverThread.start();
-					threadLock.release();
-					break;
-				} catch (IOException e1) {
-					error = e1;
-					continue;
-				} catch (LoginException e1) {
-					error = e1;
-					break;
-				} catch (InterruptedException e1) {
-					error = e1;
+						center.connect(defaultParam.address, defaultParam.port,
+								defaultParam.service, defaultParam.username,
+								defaultToken, defaultParam.publicKey,
+								defaultParam.handler);
+
+						threadLock.acquireUninterruptibly();
+						receiverThread = new Thread(center);
+						receiverThread.start();
+						threadLock.release();
+						break;
+					} catch (IOException e1) {
+						error = e1;
+						continue;
+					} catch (LoginException e1) {
+						error = e1;
+						break;
+					} catch (InterruptedException e1) {
+						error = e1;
+						break;
+					}
+				} catch (LoginException e) {
+					error = e;
 					break;
 				}
-			} catch (LoginException e) {
-				error = e;
 				break;
 			}
-			break;
+			Log.i(TAG, "report result on " + id);
+			reportResult(id, error);
+			return null;
 		}
-		Log.i(TAG, "report result on " + id);
-		reportResult(id, error);
-		return null;
 	}
-}
-	
+
 	@Override
 	public void onCreate() {
 		super.onCreate();
 		this.center = new MessageCenter();
 		this.receiverThread = null;
 		this.threadLock = new Semaphore(1);
+		this.shouldSubscribe = new AtomicBoolean(true);
 		Log.i(TAG, "onCreate");
 	}
-	
+
 	private boolean isConnected() {
 		boolean ret = false;
 		this.threadLock.acquireUninterruptibly();
 		if (this.receiverThread != null) {
-			ret = this.receiverThread.isAlive();	
+			ret = this.receiverThread.isAlive();
 		}
 		this.threadLock.release();
 		return ret;
 	}
-	
+
 	private boolean reconnect(int id, Intent intent) {
 		String cid = intent.getStringExtra("connection");
 		if (cid == null) {
 			return false;
 		}
-		ConnectionParameter param = ResourceManager.getResourceManager().getConnectionParameter(cid);
+		ConnectionParameter param = ResourceManager.getResourceManager()
+				.getConnectionParameter(cid);
 		if (param == null) {
 			return false;
 		}
@@ -151,7 +158,7 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 		}
 		return true;
 	}
-	
+
 	private void reportResult(int id, Exception e) {
 		if (this.defaultParam != null) {
 			if (this.defaultParam.handler != null) {
@@ -162,17 +169,14 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 			}
 		}
 	}
-	
-	private void sendMessageToUser(final int id,
-			final String service,
-			final String username,
-			final Message msg,
-			final int ttl) {
+
+	private void sendMessageToUser(final int id, final String service,
+			final String username, final Message msg, final int ttl) {
 		Log.i(TAG, "sendMessageToUser");
 		if (this.defaultParam == null) {
 			return;
 		}
-		
+
 		AsyncTryWithExpBackOff task = new AsyncTryWithExpBackOff() {
 			@Override
 			protected void call() throws InterruptedException, IOException {
@@ -181,7 +185,7 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 		};
 		task.execute(Integer.valueOf(id));
 	}
-	
+
 	private void sendMessageToServer(int id, final Message msg) {
 		Log.i(TAG, "sendMessageToServer");
 		if (this.defaultParam == null) {
@@ -196,16 +200,16 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 		task.execute(Integer.valueOf(id));
 	}
 
-	private void connectToServer(final int id, ConnectionParameter param, String token) {
+	private void connectToServer(final int id, ConnectionParameter param,
+			String token) {
 		if (param == null) {
 			Log.i(TAG, "null param");
 			return;
 		}
 
 		threadLock.acquireUninterruptibly();
-		if (param.equals(this.defaultParam) &&
-				token.equals(this.defaultToken) &&
-				this.receiverThread != null) {
+		if (param.equals(this.defaultParam) && token.equals(this.defaultToken)
+				&& this.receiverThread != null) {
 			// The thread is still running. We don't need to re-connect.
 			threadLock.release();
 			return;
@@ -231,30 +235,27 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 		if (this.center == null) {
 			this.center = new MessageCenter();
 		}
-		
+
 		AsyncTryWithExpBackOff task = new AsyncTryWithExpBackOff() {
 			@Override
-			protected void call() throws InterruptedException, IOException, LoginException {
-				center.connect(defaultParam.address, defaultParam.port, defaultParam.service, defaultParam.username, defaultToken, defaultParam.publicKey, defaultParam.handler);
+			protected void call() throws InterruptedException, IOException,
+					LoginException {
+				center.connect(defaultParam.address, defaultParam.port,
+						defaultParam.service, defaultParam.username,
+						defaultToken, defaultParam.publicKey,
+						defaultParam.handler);
 
 				threadLock.acquireUninterruptibly();
 				receiverThread = new Thread(center);
 				receiverThread.start();
 				threadLock.release();
-				
-				if (regId != null) {
-					subscribeInSameThread(regId);
-				}
 			}
 		};
 		task.execute(Integer.valueOf(id), Integer.valueOf(2));
 	}
-	
-	private synchronized void subscribeInSameThread(String regId) throws InterruptedException, IOException {
-		if (this.regId != null && !this.regId.equals(regId)) {
-			// We got a new regId, unsubscribe the old one first.
-			unsubscribeInSameThread(regId);
-		}
+
+	private synchronized void subscribeInSameThread(String regId)
+			throws InterruptedException, IOException {
 		if (regId.equals("")) {
 			return;
 		}
@@ -266,8 +267,9 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 		center.subscribe(params);
 		GCMRegistrar.setRegisteredOnServer(this, true);
 	}
-	
-	private void unsubscribeInSameThread(String regId) throws InterruptedException, IOException {
+
+	private void unsubscribeInSameThread(String regId)
+			throws InterruptedException, IOException {
 		final HashMap<String, String> params = new HashMap<String, String>(3);
 		params.put("pushservicetype", "gcm");
 		params.put("service", this.defaultParam.service);
@@ -276,27 +278,33 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 		center.unsubscribe(params);
 		GCMRegistrar.setRegisteredOnServer(this, true);
 	}
-	
+
 	private void subscribe(final String newRegId) {
 		AsyncTryWithExpBackOff task = new AsyncTryWithExpBackOff() {
 			@Override
 			protected void call() throws InterruptedException, IOException {
+				if (!isConnected()) {
+					throw new IOException("not connected");
+				}
 				subscribeInSameThread(newRegId);
 				Log.i(TAG, "registerED in subscribe() ");
 			}
 		};
-		task.execute(Integer.valueOf(0));
+		task.execute(Integer.valueOf(0), Integer.valueOf(4), Integer.valueOf(5000));
 	}
-	
+
 	private synchronized void unsubscribe(final String regId) {
 		AsyncTryWithExpBackOff task = new AsyncTryWithExpBackOff() {
 			@Override
 			protected void call() throws InterruptedException, IOException {
+				if (!isConnected()) {
+					throw new IOException("not connected");
+				}
 				unsubscribeInSameThread(regId);
 				Log.i(TAG, "registerED in subscribe() ");
 			}
 		};
-		task.execute(Integer.valueOf(0));
+		task.execute(Integer.valueOf(0), Integer.valueOf(4), Integer.valueOf(5000));
 	}
 	
 	@Override
@@ -308,7 +316,7 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 		}
 		int cmd = intent.getIntExtra("c", -1);
 		Log.i(TAG, "onStartCommand");
-		
+
 		if (cmd <= 0 || cmd >= MessageCenterService.CMD_MAX_CMD_ID) {
 			// Bad call.
 			this.stopSelf();
@@ -328,13 +336,13 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 		case MessageCenterService.CMD_CONNECT:
 			break;
 		case MessageCenterService.CMD_SEND_MSG_TO_SERVER:
-			msg = (Message)intent.getSerializableExtra("msg");
+			msg = (Message) intent.getSerializableExtra("msg");
 			if (msg != null) {
 				this.sendMessageToServer(id, msg);
 			}
 			break;
 		case MessageCenterService.CMD_SEND_MSG_TO_USER:
-			msg = (Message)intent.getSerializableExtra("msg");
+			msg = (Message) intent.getSerializableExtra("msg");
 			String service = intent.getStringExtra("service");
 			String username = intent.getStringExtra("username");
 			int ttl = intent.getIntExtra("ttl", 0);
@@ -343,18 +351,33 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 			}
 			break;
 		case MessageCenterService.CMD_SUBSCRIBE:
-			String regId = intent.getStringExtra("regId");
-			if (regId == null) {
+			// We should not subscribe this device for some reason.
+			// e.g.: It is invisible
+			if (!this.shouldSubscribe.get()) {
+				break;
+			}
+			String regId = GCMRegistrar.getRegistrationId(this);
+			if (regId.equals("")) {
+				Log.i(TAG, "not registered");
+				GCMRegistrar.register(this, ResourceManager.getResourceManager().getSenderIds());
 				break;
 			} else {
-				this.regId = regId;
+				if (GCMRegistrar.isRegisteredOnServer(this)) {
+					break;
+				}
 			}
 			this.subscribe(regId);
+			break;
+		case MessageCenterService.CMD_UNSUBSCRIBE:
+			regId = intent.getStringExtra("regId");
+			if (regId != null) {
+				this.unsubscribe(regId);
+			}
 			break;
 		}
 		return START_STICKY;
 	}
-	
+
 	@Override
 	public void onDestroy() {
 		Log.i(TAG, "onDestroy");
@@ -377,20 +400,17 @@ abstract class AsyncTryWithExpBackOff extends AsyncTask<Integer, Void, Void> {
 		}
 		super.onDestroy();
 	}
-	
-/*	private void printMap(Map<String, String> header) {
-		Iterator<Entry<String,String>> iter = header.entrySet().iterator();
-		while (iter.hasNext()) {
-			Entry<String, String> entry = iter.next();
-			Log.i(TAG, "[" + entry.getKey() + "=" + entry.getValue() + "]");
-		}
-	}
 
-	private void printMessage(Message msg) {
-		Map<String, String> header = msg.getHeader();
-		printMap(header);
-	}*/
-	
+	/*
+	 * private void printMap(Map<String, String> header) {
+	 * Iterator<Entry<String,String>> iter = header.entrySet().iterator(); while
+	 * (iter.hasNext()) { Entry<String, String> entry = iter.next(); Log.i(TAG,
+	 * "[" + entry.getKey() + "=" + entry.getValue() + "]"); } }
+	 * 
+	 * private void printMessage(Message msg) { Map<String, String> header =
+	 * msg.getHeader(); printMap(header); }
+	 */
+
 	@Override
 	public IBinder onBind(Intent intent) {
 		return null;

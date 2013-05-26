@@ -22,7 +22,6 @@ import android.content.Intent;
 import android.util.Log;
 
 import com.google.android.gcm.GCMBaseIntentService;
-import com.google.android.gcm.GCMRegistrar;
 /**
  * IntentService responsible for handling GCM messages.
  */
@@ -55,15 +54,12 @@ public class GCMIntentService extends GCMBaseIntentService {
     }
 
     @Override
-    protected void onUnregistered(Context context, String registrationId) {
-        Log.i(TAG, "Device unregistered");
-        if (GCMRegistrar.isRegisteredOnServer(context)) {
-//            ServerUtilities.unregister(context, registrationId);
-        } else {
-            // This callback results from the call to unregister made on
-            // ServerUtilities when the registration to the server failed.
-            Log.i(TAG, "Ignoring unregister callback");
-        }
+    protected void onUnregistered(Context context, String regId) {
+        Log.i(TAG, "Device unregistered: regId = " + regId);
+		Intent intent = new Intent(context, MessageCenterService.class);
+		intent.putExtra("c", MessageCenterService.CMD_UNSUBSCRIBE);
+		intent.putExtra("regId", regId);
+		context.startService(intent);
     }
 
     @Override

@@ -55,7 +55,8 @@ public class MessageCenterService extends Service {
 	protected final static int CMD_MAX_ID_REQUIRES_CONN = 7;
 	protected final static int CMD_SUBSCRIBE = 8;
 	protected final static int CMD_UNSUBSCRIBE = 9;
-	protected final static int CMD_MAX_CMD_ID = 10;
+	protected final static int CMD_MESSAGE_DIGEST = 10;
+	protected final static int CMD_MAX_CMD_ID = 11;
 
 	abstract class AsyncTryWithExpBackOff extends
 			AsyncTask<Integer, Void, Void> {
@@ -143,13 +144,17 @@ public class MessageCenterService extends Service {
 		if (cid == null) {
 			return false;
 		}
-		ConnectionParameter param = ResourceManager.getResourceManager()
+		ConnectionParameter param = null;
+		String token = null;
+		if (cid.equals("default")) {
+			param = this.defaultParam;
+			token = this.defaultToken;
+		} else {
+			param = ResourceManager.getResourceManager()
 				.getConnectionParameter(cid);
-		if (param == null) {
-			return false;
+			token = intent.getStringExtra("token");
 		}
-		String token = intent.getStringExtra("token");
-		if (token == null) {
+		if (param == null || token == null) {
 			return false;
 		}
 		this.connectToServer(id, param, token);
@@ -370,10 +375,31 @@ public class MessageCenterService extends Service {
 			break;
 		case MessageCenterService.CMD_UNSUBSCRIBE:
 			regId = intent.getStringExtra("regId");
-			if (regId != null) {
+			if (regId != null && !regId.equals("")) {
 				this.unsubscribe(regId);
 			}
 			break;
+		case MessageCenterService.CMD_MESSAGE_DIGEST:
+			String msgId = intent.getStringExtra("msgId");
+			int size = intent.getIntExtra("size", 0);
+			HashMap<String, String> params = null;
+			if (intent.hasExtra("params")) {
+				params = (HashMap<String, String>) intent.getSerializableExtra("params");
+			}
+			if (intent.hasExtra("sender")) {
+				String sender = intent.getStringExtra("sender");
+				String senderService = intent.getStringExtra("service");
+				if (this.defaultParam != null) {
+					if (this.defaultParam.handler != null) {
+                    	this.defaultParam.handler.onMessageDigestFromUser(senderService, sender, size, msgId, params);   					
+					}
+				}
+			}
+			if (this.defaultParam != null) {
+				if (this.defaultParam.handler != null) {
+					this.defaultParam.handler.onMessageDigestFromServer(size, msgId, params);
+				}
+			}
 		}
 		return START_STICKY;
 	}

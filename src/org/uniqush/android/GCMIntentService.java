@@ -17,70 +17,110 @@
 
 package org.uniqush.android;
 
+import java.util.HashMap;
+import java.util.Set;
+
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
 import com.google.android.gcm.GCMBaseIntentService;
+
 /**
  * IntentService responsible for handling GCM messages.
  */
 public class GCMIntentService extends GCMBaseIntentService {
 
-    private static final String TAG = "GCMIntentService";
-    
-    public GCMIntentService() {
-        super();
-    }
-    
-    @Override
-    protected String[] getSenderIds (Context context) {
-    	String[] senderIds = ResourceManager.getResourceManager().getSenderIds();
-        Log.i(TAG, "request sender ids:");
-        
-        for (String s : senderIds) {
-        	Log.i(TAG, "sender id: " + s);
-        }
-    	return senderIds;
-    }
+	private static final String TAG = "GCMIntentService";
 
-    @Override
-    protected void onRegistered(Context context, String regId) {
-        Log.i(TAG, "Device registered: regId = " + regId);
+	public GCMIntentService() {
+		super();
+	}
+
+	@Override
+	protected String[] getSenderIds(Context context) {
+		String[] senderIds = ResourceManager.getResourceManager()
+				.getSenderIds();
+		Log.i(TAG, "request sender ids:");
+
+		for (String s : senderIds) {
+			Log.i(TAG, "sender id: " + s);
+		}
+		return senderIds;
+	}
+
+	@Override
+	protected void onRegistered(Context context, String regId) {
+		Log.i(TAG, "Device registered: regId = " + regId);
 		Intent intent = new Intent(context, MessageCenterService.class);
 		intent.putExtra("c", MessageCenterService.CMD_SUBSCRIBE);
 		intent.putExtra("regId", regId);
 		context.startService(intent);
-    }
+	}
 
-    @Override
-    protected void onUnregistered(Context context, String regId) {
-        Log.i(TAG, "Device unregistered: regId = " + regId);
+	@Override
+	protected void onUnregistered(Context context, String regId) {
+		Log.i(TAG, "Device unregistered: regId = " + regId);
 		Intent intent = new Intent(context, MessageCenterService.class);
 		intent.putExtra("c", MessageCenterService.CMD_UNSUBSCRIBE);
 		intent.putExtra("regId", regId);
 		context.startService(intent);
-    }
+	}
 
-    @Override
-    protected void onMessage(Context context, Intent intent) {
-        Log.i(TAG, "Received message");
-    }
+	@Override
+	protected void onMessage(Context context, Intent intent) {
+		Log.i(TAG, "Received message");
+		Set<String> extras = intent.getExtras().keySet();
+		int size = 0;
+		String msgId = "";
+		String sender = null;
+		String senderService = null;
 
-    @Override
-    protected void onDeletedMessages(Context context, int total) {
-        Log.i(TAG, "Received deleted messages notification");
-    }
+		HashMap<String, String> params = new HashMap<String, String>(
+				extras.size());
 
-    @Override
-    public void onError(Context context, String errorId) {
-        Log.i(TAG, "Received error: " + errorId);
-    }
+		for (String s : extras) {
+			Log.i(TAG, "[" + s + "]=" + intent.getStringExtra(s));
+			if (s.equals("uniqush.msgsize")) {
+				size = Integer.parseInt(intent.getStringExtra(s));
+			} else if (s.equals("uniqush.msgid")) {
+				msgId = intent.getStringExtra(s);
+			} else if (s.equals("uniqush.sender")) {
+				sender = intent.getStringExtra(s);
+			} else if (s.equals("uniqush.sender-service")) {
+				senderService = intent.getStringExtra(s);
+			} else {
+				params.put(s, intent.getStringExtra(s));
+			}
+		}
+		
+		Intent i = new Intent(context, MessageCenterService.class);
+		i.putExtra("c", MessageCenterService.CMD_MESSAGE_DIGEST);
+		i.putExtra("params", params);
+		i.putExtra("msgId", msgId);
+		i.putExtra("size", size);
+		if (sender != null && !sender.equals("")) {
+			i.putExtra("sender", sender);
+			i.putExtra("service", senderService);
+		}
+		context.startService(i);
+	}
 
-    @Override
-    protected boolean onRecoverableError(Context context, String errorId) {
-        // log message
-        Log.i(TAG, "Received recoverable error: " + errorId);
-        return super.onRecoverableError(context, errorId);
-    }
+	@Override
+	protected void onDeletedMessages(Context context, int total) {
+		Log.i(TAG, "Received deleted messages notification");
+	}
+
+	@Override
+	public void onError(Context context, String errorId) {
+		Log.i(TAG, "Received error: " + errorId);
+	}
+
+	@Override
+	protected boolean onRecoverableError(Context context, String errorId) {
+		// log message
+		Log.i(TAG, "Received recoverable error: " + errorId);
+		return super.onRecoverableError(context, errorId);
+	}
+
 }

@@ -21,8 +21,6 @@ import java.security.interfaces.RSAPublicKey;
 
 import org.uniqush.client.Message;
 
-import com.google.android.gcm.GCMRegistrar;
-
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
@@ -42,7 +40,6 @@ public class MessageCenter {
 			i++;
 			ResourceManager.getResourceManager().setSenderIds(s);
 		}
-		GCMRegistrar.setRegisteredOnServer(context, false);
 	}
 	
 	/**

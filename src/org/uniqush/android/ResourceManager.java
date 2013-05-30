@@ -38,19 +38,19 @@ class ResourceManager {
 	public static void setMessageHandler(Context context, String className)
 			throws ClassNotFoundException, SecurityException,
 			NoSuchMethodException {
-		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
-				Context.MODE_PRIVATE);
-		pref.edit().putString(MSG_HANDLER, className);
-		pref.edit().commit();
 		Log.i(TAG, "message handler class name: " + className);
-
 		Class<?> messageHandlerClass = Class.forName(className);
 		if (!MessageHandler.class.isAssignableFrom(messageHandlerClass)) {
 			throw new ClassNotFoundException(className
 					+ " is not an implementation of "
 					+ MessageHandler.class.getName());
 		}
-		messageHandlerClass.getConstructor(context.getClass());
+		messageHandlerClass.getConstructor(Context.class);
+		
+		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
+				Context.MODE_PRIVATE);
+		pref.edit().putString(MSG_HANDLER, className);
+		pref.edit().commit();
 	}
 
 	public static MessageHandler getMessageHandler(Context context) {

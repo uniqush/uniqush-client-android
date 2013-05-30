@@ -20,6 +20,8 @@ package org.uniqush.android;
 import java.security.interfaces.RSAPublicKey;
 import org.uniqush.client.Message;
 
+import com.google.android.gcm.GCMRegistrar;
+
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
@@ -180,8 +182,6 @@ public class MessageCenter {
 	 *            the session key. The value of the token has nothing to do with
 	 *            the value of the session key. In another word, it is not used
 	 *            to derive the session key.
-	 * @param handler
-	 *            The message handler for the connection.
 	 * @param subscribe
 	 *            true if it wants to receive push notification from GCM. NOTE:
 	 *            It is org.uniqush.android.MessageHandler, not
@@ -199,6 +199,8 @@ public class MessageCenter {
 		reconnect(context, id);
 
 		if (subscribe) {
+			// Make sure the device has the proper dependencies.
+			GCMRegistrar.checkDevice(context);
 			Intent intent = new Intent(context, MessageCenterService.class);
 			intent.putExtra("c", MessageCenterService.CMD_SUBSCRIBE);
 			context.startService(intent);
@@ -217,6 +219,7 @@ public class MessageCenter {
 	 *            through the handler's onError() method.
 	 */
 	public void reconnect(Context context, int id) {
+		Log.i(TAG, "reconnect: " + id);
 		Intent intent = new Intent(context, MessageCenterService.class);
 		intent.putExtra("c", MessageCenterService.CMD_CONNECT);
 		intent.putExtra("connection", this.defaultParam.toString());

@@ -127,6 +127,7 @@ public class MessageCenterService extends Service {
 		super.onCreate();
 		this.center = new MessageCenter();
 		this.receiverThread = null;
+		this.handler = null;
 		this.threadLock = new Semaphore(1);
 		this.handlerLock = new Semaphore(1);
 		this.shouldSubscribe = new AtomicBoolean(true);
@@ -339,7 +340,7 @@ public class MessageCenterService extends Service {
 		Log.i(TAG, "onStartCommand");
 
 		if (cmd <= 0 || cmd >= MessageCenterService.CMD_MAX_CMD_ID) {
-			// Bad call.
+			Log.i(TAG, "wrong command: " + cmd);
 			this.stopSelf();
 			return START_NOT_STICKY;
 		}
@@ -358,16 +359,19 @@ public class MessageCenterService extends Service {
 		Message msg = null;
 		switch (cmd) {
 		case MessageCenterService.CMD_HANDLER_READY:
+			Log.i(TAG, "handler is ready");
 			AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>() {
 				@Override
 				protected Void doInBackground(Void... params) {
 					getMessageHandler();
+					Log.i(TAG, "have set the handler");
 					return null;
 				}
 			};
 			task.execute();
 			break;
 		case MessageCenterService.CMD_CONNECT:
+			Log.i(TAG, "processing connect command");
 			break;
 		case MessageCenterService.CMD_SEND_MSG_TO_SERVER:
 			msg = (Message) intent.getSerializableExtra("msg");
@@ -429,6 +433,7 @@ public class MessageCenterService extends Service {
 				}
 			}
 		}
+		Log.i(TAG, "successfully processed one command");
 		return START_STICKY;
 	}
 

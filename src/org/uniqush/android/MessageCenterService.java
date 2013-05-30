@@ -44,6 +44,7 @@ public class MessageCenterService extends Service {
 	private ConnectionParameter defaultParam;
 	private String defaultToken;
 	private MessageHandler handler;
+	private Semaphore handlerLock;
 	private AtomicBoolean shouldSubscribe;
 	private String TAG = "UniqushMessageCenterService";
 
@@ -57,7 +58,8 @@ public class MessageCenterService extends Service {
 	protected final static int CMD_SUBSCRIBE = 8;
 	protected final static int CMD_UNSUBSCRIBE = 9;
 	protected final static int CMD_MESSAGE_DIGEST = 10;
-	protected final static int CMD_MAX_CMD_ID = 11;
+	protected final static int CMD_HANDLER_READY = 11;
+	protected final static int CMD_MAX_CMD_ID = 12;
 
 	abstract class AsyncTryWithExpBackOff extends
 			AsyncTask<Integer, Void, Void> {
@@ -126,6 +128,7 @@ public class MessageCenterService extends Service {
 		this.center = new MessageCenter();
 		this.receiverThread = null;
 		this.threadLock = new Semaphore(1);
+		this.handlerLock = new Semaphore(1);
 		this.shouldSubscribe = new AtomicBoolean(true);
 		Log.i(TAG, "onCreate");
 	}
@@ -166,10 +169,13 @@ public class MessageCenterService extends Service {
 	}
 
 	private MessageHandler getMessageHandler() {
-		if (this.handler != null) {
-			return this.handler;
+		this.handlerLock.acquireUninterruptibly();
+		if (this.handler == null) {
+			this.handler = ResourceManager.getMessageHandler(this);
 		}
-		return ResourceManager.getMessageHandler(this);
+		MessageHandler handler = this.handler;
+		this.handlerLock.release();
+		return handler;
 	}
 
 	private void reportResult(int id, Exception e) {
@@ -321,6 +327,7 @@ public class MessageCenterService extends Service {
 				Integer.valueOf(5000));
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		super.onStartCommand(intent, flags, startId);
@@ -340,13 +347,26 @@ public class MessageCenterService extends Service {
 		int id = intent.getIntExtra("id", -1);
 		if (cmd < MessageCenterService.CMD_MAX_ID_REQUIRES_CONN) {
 			if (!this.reconnect(id, intent)) {
-				// cannot connect to the server.
+				MessageHandler handler = this.getMessageHandler();
+				if (handler != null) {
+					handler.onError(new IOException("cannot connect to server: bad argument"));
+				}
 				this.stopSelf();
 				return START_NOT_STICKY;
 			}
 		}
 		Message msg = null;
 		switch (cmd) {
+		case MessageCenterService.CMD_HANDLER_READY:
+			AsyncTask<Void, Void, Void> task = new AsyncTask<Void, Void, Void>() {
+				@Override
+				protected Void doInBackground(Void... params) {
+					getMessageHandler();
+					return null;
+				}
+			};
+			task.execute();
+			break;
 		case MessageCenterService.CMD_CONNECT:
 			break;
 		case MessageCenterService.CMD_SEND_MSG_TO_SERVER:

@@ -23,6 +23,7 @@ import org.uniqush.client.MessageCenter;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.util.Log;
 
 class ResourceManager {
@@ -46,11 +47,13 @@ class ResourceManager {
 					+ MessageHandler.class.getName());
 		}
 		messageHandlerClass.getConstructor(Context.class);
-		
+
 		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
 				Context.MODE_PRIVATE);
-		pref.edit().putString(MSG_HANDLER, className);
-		pref.edit().commit();
+		Editor editor = pref.edit();
+		editor.putString(MSG_HANDLER, className);
+		editor.commit();
+		Log.i(TAG, "committed");
 	}
 
 	public static MessageHandler getMessageHandler(Context context) {
@@ -58,6 +61,7 @@ class ResourceManager {
 				Context.MODE_PRIVATE);
 		String className = pref.getString(MSG_HANDLER, null);
 		if (className == null) {
+			Log.i(TAG, "message handler has not been set");
 			return null;
 		}
 		Log.i(TAG, "message handler class name: " + className);
@@ -65,7 +69,7 @@ class ResourceManager {
 		try {
 			Class<?> messageHandlerClass = Class.forName(className);
 			Constructor<?> constructor = messageHandlerClass
-					.getConstructor(context.getClass());
+					.getConstructor(Context.class);
 			Object obj = constructor.newInstance(context);
 			if (obj instanceof MessageHandler) {
 				return (MessageHandler) obj;
@@ -73,7 +77,7 @@ class ResourceManager {
 			throw new InstantiationException(
 					"should implement org.uniqush.android.MessageHandler");
 		} catch (Exception e) {
-			Log.e(TAG, e.getMessage());
+			Log.e(TAG, e.getClass().getName() + ": " + e.getMessage());
 		}
 		return null;
 	}

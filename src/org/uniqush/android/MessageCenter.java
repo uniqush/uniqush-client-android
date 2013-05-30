@@ -156,15 +156,13 @@ public class MessageCenter {
 			String service, 
 			String username, 
 			String token,
-			MessageHandler handler,
 			boolean subscribe) {
 		Log.i(TAG, "connect in message center");
 		ConnectionParameter param = new ConnectionParameter(address,
 				port,
 				publicKey,
 				service,
-				username,
-				handler);
+				username);
 		ResourceManager.getResourceManager().addConnectionParameter(param);
 		this.defaultParam = param;
 		this.defaultToken = token;

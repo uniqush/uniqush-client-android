@@ -23,7 +23,6 @@ class ConnectionParameter {
 	public String address;
 	public int port;
 	public RSAPublicKey publicKey;
-	public MessageHandler handler;
 	public String username;
 	public String service;
 	
@@ -31,14 +30,12 @@ class ConnectionParameter {
 			int port, 
 			RSAPublicKey publicKey,
 			String service,
-			String username,
-			MessageHandler handler) {
+			String username) {
 		this.address = address;
 		this.port = port;
 		this.publicKey = publicKey;
 		this.service = service;
 		this.username = username;
-		this.handler = handler;
 	}
 	
 	@Override

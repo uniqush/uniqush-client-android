@@ -43,6 +43,7 @@ public class MessageCenterService extends Service {
 
 	private ConnectionParameter defaultParam;
 	private String defaultToken;
+	private MessageHandler handler;
 	private AtomicBoolean shouldSubscribe;
 	private String TAG = "UniqushMessageCenterService";
 
@@ -90,7 +91,7 @@ public class MessageCenterService extends Service {
 						center.connect(defaultParam.address, defaultParam.port,
 								defaultParam.service, defaultParam.username,
 								defaultToken, defaultParam.publicKey,
-								defaultParam.handler);
+								getMessageHandler());
 
 						threadLock.acquireUninterruptibly();
 						receiverThread = new Thread(center);
@@ -151,7 +152,7 @@ public class MessageCenterService extends Service {
 			token = this.defaultToken;
 		} else {
 			param = ResourceManager.getResourceManager()
-				.getConnectionParameter(cid);
+					.getConnectionParameter(cid);
 			token = intent.getStringExtra("token");
 		}
 		if (param == null || token == null) {
@@ -164,14 +165,20 @@ public class MessageCenterService extends Service {
 		return true;
 	}
 
+	private MessageHandler getMessageHandler() {
+		if (this.handler != null) {
+			return this.handler;
+		}
+		return ResourceManager.getMessageHandler(this);
+	}
+
 	private void reportResult(int id, Exception e) {
-		if (this.defaultParam != null) {
-			if (this.defaultParam.handler != null) {
-				if (id <= 0 && e != null) {
-					this.defaultParam.handler.onError(e);
-				}
-				this.defaultParam.handler.onResult(id, e);
+		MessageHandler handler = this.getMessageHandler();
+		if (handler != null) {
+			if (id <= 0 && e != null) {
+				handler.onError(e);
 			}
+			handler.onResult(id, e);
 		}
 	}
 
@@ -248,7 +255,7 @@ public class MessageCenterService extends Service {
 				center.connect(defaultParam.address, defaultParam.port,
 						defaultParam.service, defaultParam.username,
 						defaultToken, defaultParam.publicKey,
-						defaultParam.handler);
+						getMessageHandler());
 
 				threadLock.acquireUninterruptibly();
 				receiverThread = new Thread(center);
@@ -295,7 +302,8 @@ public class MessageCenterService extends Service {
 				Log.i(TAG, "registerED in subscribe() ");
 			}
 		};
-		task.execute(Integer.valueOf(0), Integer.valueOf(4), Integer.valueOf(5000));
+		task.execute(Integer.valueOf(0), Integer.valueOf(4),
+				Integer.valueOf(5000));
 	}
 
 	private synchronized void unsubscribe(final String regId) {
@@ -309,9 +317,10 @@ public class MessageCenterService extends Service {
 				Log.i(TAG, "registerED in subscribe() ");
 			}
 		};
-		task.execute(Integer.valueOf(0), Integer.valueOf(4), Integer.valueOf(5000));
+		task.execute(Integer.valueOf(0), Integer.valueOf(4),
+				Integer.valueOf(5000));
 	}
-	
+
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		super.onStartCommand(intent, flags, startId);
@@ -364,7 +373,8 @@ public class MessageCenterService extends Service {
 			String regId = GCMRegistrar.getRegistrationId(this);
 			if (regId.equals("")) {
 				Log.i(TAG, "not registered");
-				GCMRegistrar.register(this, ResourceManager.getResourceManager().getSenderIds());
+				GCMRegistrar.register(this, ResourceManager
+						.getResourceManager().getSenderIds());
 				break;
 			} else {
 				if (GCMRegistrar.isRegisteredOnServer(this)) {
@@ -380,24 +390,22 @@ public class MessageCenterService extends Service {
 			}
 			break;
 		case MessageCenterService.CMD_MESSAGE_DIGEST:
-			String msgId = intent.getStringExtra("msgId");
-			int size = intent.getIntExtra("size", 0);
-			HashMap<String, String> params = null;
-			if (intent.hasExtra("params")) {
-				params = (HashMap<String, String>) intent.getSerializableExtra("params");
-			}
-			if (intent.hasExtra("sender")) {
-				String sender = intent.getStringExtra("sender");
-				String senderService = intent.getStringExtra("service");
-				if (this.defaultParam != null) {
-					if (this.defaultParam.handler != null) {
-                    	this.defaultParam.handler.onMessageDigestFromUser(senderService, sender, size, msgId, params);   					
-					}
+			MessageHandler handler = getMessageHandler();
+			if (handler != null) {
+				String msgId = intent.getStringExtra("msgId");
+				int size = intent.getIntExtra("size", 0);
+				HashMap<String, String> params = null;
+				if (intent.hasExtra("params")) {
+					params = (HashMap<String, String>) intent
+							.getSerializableExtra("params");
 				}
-			}
-			if (this.defaultParam != null) {
-				if (this.defaultParam.handler != null) {
-					this.defaultParam.handler.onMessageDigestFromServer(size, msgId, params);
+				if (intent.hasExtra("sender")) {
+					String sender = intent.getStringExtra("sender");
+					String senderService = intent.getStringExtra("service");
+					handler.onMessageDigestFromUser(senderService, sender,
+							size, msgId, params);
+				} else {
+					handler.onMessageDigestFromServer(size, msgId, params);
 				}
 			}
 		}
@@ -419,11 +427,8 @@ public class MessageCenterService extends Service {
 			this.threadLock.release();
 		}
 		this.receiverThread = null;
-		if (this.defaultParam != null) {
-			if (this.defaultParam.handler != null) {
-				this.defaultParam.handler.onServiceDestroyed();
-			}
-		}
+		MessageHandler handler = this.getMessageHandler();
+		handler.onServiceDestroyed();
 		super.onDestroy();
 	}
 

@@ -18,14 +18,10 @@
 package org.uniqush.android;
 
 import java.security.interfaces.RSAPublicKey;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-
 import org.uniqush.client.Message;
 
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.util.Log;
 
 public class MessageCenter {
@@ -34,31 +30,9 @@ public class MessageCenter {
 	private ConnectionParameter defaultParam;
 	private String defaultToken;
 	private String[] senderIds;
-	
-	private static String PREF_NAME = "uniqush";
-	private static String MSG_HANDLER = "message-handler-class";
-	
+
 	public static void setMessageHandler(Context context, String className) {
-		SharedPreferences pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-		pref.edit().putString(MSG_HANDLER, className);
-		pref.edit().commit();
-		Log.i(TAG, "message handler class name: " + className);
-	}
-	
-	public static MessageHandler getMessageHandler(Context context) throws ClassNotFoundException, SecurityException, NoSuchMethodException, IllegalArgumentException, InstantiationException, IllegalAccessException, InvocationTargetException {
-		SharedPreferences pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-		String className = pref.getString(MSG_HANDLER, null);
-		if (className == null) {
-			return null;
-		}
-		Log.i(TAG, "message handler class name: " + className);
-		Class<?> messageHandlerClass = Class.forName(className);
-		Constructor<?> constructor = messageHandlerClass.getConstructor(context.getClass());
-		Object obj = constructor.newInstance(context);
-		if (obj instanceof MessageHandler) {
-			return (MessageHandler)obj;
-		}
-		throw new InstantiationException("should implement org.uniqush.android.MessageHandler");
+		ResourceManager.setMessageHandler(context, className);
 	}
 	
 	public MessageCenter(Context context, String ...senderIds) {

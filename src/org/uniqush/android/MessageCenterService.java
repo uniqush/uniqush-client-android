@@ -18,7 +18,9 @@
 package org.uniqush.android;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -328,6 +330,22 @@ public class MessageCenterService extends Service {
 				Integer.valueOf(5000));
 	}
 
+	private void config(int id, final int digestThreshold,
+			final int compressThreshold, final List<String> digestFields) {
+
+		AsyncTryWithExpBackOff task = new AsyncTryWithExpBackOff() {
+			@Override
+			protected void call() throws InterruptedException, IOException {
+				if (!isConnected()) {
+					throw new IOException("Not connected for config");
+				}
+				center.config(digestThreshold, compressThreshold, digestFields);
+			}
+		};
+
+		task.execute(Integer.valueOf(id));
+	}
+
 	@SuppressWarnings("unchecked")
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
@@ -350,7 +368,8 @@ public class MessageCenterService extends Service {
 			if (!this.reconnect(id, intent)) {
 				MessageHandler handler = this.getMessageHandler();
 				if (handler != null) {
-					handler.onError(new IOException("cannot connect to server: bad argument"));
+					handler.onError(new IOException(
+							"cannot connect to server: bad argument"));
 				}
 				this.stopSelf();
 				return START_NOT_STICKY;
@@ -432,6 +451,14 @@ public class MessageCenterService extends Service {
 					handler.onMessageDigestFromServer(size, msgId, params);
 				}
 			}
+			break;
+		case MessageCenterService.CMD_CONFIG:
+			int compressThreshold = intent
+					.getIntExtra("compressThreshold", 512);
+			int digestThreshold = intent.getIntExtra("digestThreshold", 1024);
+			ArrayList<String> digestFields = intent
+					.getStringArrayListExtra("digestFields");
+			this.config(id, digestThreshold, compressThreshold, digestFields);
 		}
 		Log.i(TAG, "successfully processed one command");
 		return START_STICKY;

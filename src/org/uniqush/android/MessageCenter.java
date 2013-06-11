@@ -18,6 +18,8 @@
 package org.uniqush.android;
 
 import java.security.interfaces.RSAPublicKey;
+import java.util.ArrayList;
+
 import org.uniqush.client.Message;
 
 import com.google.android.gcm.GCMRegistrar;
@@ -236,5 +238,44 @@ public class MessageCenter {
 	 */
 	public void changeToken(String newToken) {
 		this.defaultToken = newToken;
+	}
+
+	/**
+	 * Set the parameter for the connection.
+	 * 
+	 * @param context
+	 * @param id
+	 * @param digestThreshold
+	 *            If the message length is greater than the digestThreshold, the
+	 *            server will, instead of sending the message itself, send a
+	 *            message digest to the client. The client has to retrieve the
+	 *            message manually using retrieveMessage() method.
+	 * @param compressThreshold
+	 *            If the message length is greater than the compressThreshold,
+	 *            the message will be compressed before sending to the client or
+	 *            the server.
+	 * @param digestFields
+	 *            Tells the server which fields in the message header should be
+	 *            included in the message digest.
+	 */
+	public void config(Context context, int id, int digestThreshold,
+			int compressThreshold, String... digestFields) {
+
+		Log.i(TAG, "config: " + id);
+		Intent intent = new Intent(context, MessageCenterService.class);
+		intent.putExtra("c", MessageCenterService.CMD_CONFIG);
+		intent.putExtra("connection", this.defaultParam.toString());
+		intent.putExtra("token", this.defaultToken);
+		intent.putExtra("id", id);
+
+		intent.putExtra("digestThreshold", digestThreshold);
+		intent.putExtra("compressThreshold", compressThreshold);
+
+		ArrayList<String> dfs = new ArrayList<String>(digestFields.length);
+		for (String df : digestFields) {
+			dfs.add(df);
+		}
+		intent.putStringArrayListExtra("digestFields", dfs);
+		context.startService(intent);
 	}
 }

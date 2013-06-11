@@ -81,23 +81,27 @@ public class MessageCenterService extends Service {
 			}
 			Exception error = null;
 			for (int i = 0; i < N; i++) {
-				Log.i(TAG, "try one more time. wait time: " + time);
 				try {
 					call();
 				} catch (InterruptedException e) {
 					return null;
 				} catch (IOException e) {
 					try {
+						Log.i(TAG, "try one more time. wait time: " + time);
 						Thread.sleep(time);
 						time += (long) (Math.random() * time) << 1;
 						error = e;
 
+
+						threadLock.acquireUninterruptibly();
+						if (receiverThread != null && center != null) {
+							center.stop();
+							receiverThread.join();
+						}
 						center.connect(defaultParam.address, defaultParam.port,
 								defaultParam.service, defaultParam.username,
 								defaultToken, defaultParam.publicKey,
 								getMessageHandler());
-
-						threadLock.acquireUninterruptibly();
 						receiverThread = new Thread(center);
 						receiverThread.start();
 						threadLock.release();
@@ -232,10 +236,13 @@ public class MessageCenterService extends Service {
 		if (param.equals(this.defaultParam) && token.equals(this.defaultToken)
 				&& this.receiverThread != null) {
 			// The thread is still running. We don't need to re-connect.
+			Log.i(TAG, "still running, no need to re-connect");
 			threadLock.release();
 			return;
 		}
 
+		Log.i(TAG, "have to re-connect. old connection: " + this.defaultParam
+				+ "; new connection: " + param);
 		this.defaultParam = null;
 		this.defaultToken = null;
 		// There's another connection. Close it first.
@@ -243,14 +250,15 @@ public class MessageCenterService extends Service {
 			threadLock.release();
 			this.center.stop();
 			try {
+				threadLock.acquireUninterruptibly();
 				this.receiverThread.join();
 				this.receiverThread = null;
 			} catch (InterruptedException e) {
 				return;
 			}
-		} else {
-			threadLock.release();
 		}
+		this.receiverThread = new Thread(center);
+		threadLock.release();
 		this.defaultParam = param;
 		this.defaultToken = token;
 		if (this.center == null) {
@@ -267,7 +275,6 @@ public class MessageCenterService extends Service {
 						getMessageHandler());
 
 				threadLock.acquireUninterruptibly();
-				receiverThread = new Thread(center);
 				receiverThread.start();
 				threadLock.release();
 			}
@@ -459,6 +466,7 @@ public class MessageCenterService extends Service {
 			ArrayList<String> digestFields = intent
 					.getStringArrayListExtra("digestFields");
 			this.config(id, digestThreshold, compressThreshold, digestFields);
+			break;
 		}
 		Log.i(TAG, "successfully processed one command");
 		return START_STICKY;

@@ -47,15 +47,8 @@ class ConnectionParameter {
 			return false;
 		}
 		ConnectionParameter param = (ConnectionParameter) p;
-		if (param.port != this.port) 
-			return false;
-		if (!param.service.endsWith(this.service))
-			return false;
-		if (!param.username.endsWith(this.username))
-			return false;
-		if (!param.address.endsWith(this.address))
-			return false;
-		return true;
+		boolean ret = param.toString().equals(p.toString());
+		return ret;
 	}
 	
 	@Override

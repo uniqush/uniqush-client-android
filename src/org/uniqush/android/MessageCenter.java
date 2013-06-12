@@ -241,15 +241,54 @@ public class MessageCenter {
 	}
 
 	/**
-	 * Set the parameter for the connection.
+	 * Request a message by its message Id from the server.
+	 * 
+	 * When a message is too large or the client is not currently connecting
+	 * with the server, the handler's
+	 * onMessageDigestFromServer()/onMessageDigestFromUser() will be called.
+	 * Rather than the message itself, a digest (short version of a message)
+	 * will be passed to the method along with an Id of the message.
+	 * 
+	 * The client could then use the Id of the message to retrieve the message
+	 * later.
+	 * 
+	 * This is very useful for mobile environment since total data transmission
+	 * may be limited within a certain period (e.g. using a 3/4G network.) The
+	 * client may want to retrieve the data after connecting to a network with
+	 * unlimited data plan (e.g. a home WiFi.)
 	 * 
 	 * @param context
 	 * @param id
+	 *            The id used to identify this call when reporting the status of
+	 *            this call.
+	 * @param msgId
+	 *            The message ID.
+	 */
+	public void requestMessage(Context context, int id, String msgId) {
+		Intent intent = new Intent(context, MessageCenterService.class);
+		intent.putExtra("c", MessageCenterService.CMD_REQUEST_MSG);
+		intent.putExtra("connection", this.defaultParam.toString());
+		intent.putExtra("token", this.defaultToken);
+		intent.putExtra("id", id);
+		intent.putExtra("msgId", msgId);
+		context.startService(intent);
+	}
+
+	/**
+	 * Set the parameter for the connection.
+	 * 
+	 * @param context
+	 *            The context
+	 * @param id
+	 *            If id > 0, then any result (error or success) will be reported
+	 *            through the handler's onResult() method with the id value of
+	 *            id. Otherwise (i.e. id <= 0), only error will be reported
+	 *            through the handler's onError() method.
 	 * @param digestThreshold
 	 *            If the message length is greater than the digestThreshold, the
 	 *            server will, instead of sending the message itself, send a
 	 *            message digest to the client. The client has to retrieve the
-	 *            message manually using retrieveMessage() method.
+	 *            message manually using requestMessage() method.
 	 * @param compressThreshold
 	 *            If the message length is greater than the compressThreshold,
 	 *            the message will be compressed before sending to the client or

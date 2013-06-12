@@ -92,7 +92,6 @@ public class MessageCenterService extends Service {
 						time += (long) (Math.random() * time) << 1;
 						error = e;
 
-
 						threadLock.acquireUninterruptibly();
 						if (receiverThread != null && center != null) {
 							center.stop();
@@ -193,6 +192,21 @@ public class MessageCenterService extends Service {
 			}
 			handler.onResult(id, e);
 		}
+	}
+
+	private void requestMessage(final int id, final String msgId) {
+		Log.i(TAG, "retrieveMessage");
+		if (this.defaultParam == null) {
+			return;
+		}
+
+		AsyncTryWithExpBackOff task = new AsyncTryWithExpBackOff() {
+			@Override
+			protected void call() throws InterruptedException, IOException {
+				center.requestMessage(msgId);
+			}
+		};
+		task.execute(Integer.valueOf(id));
 	}
 
 	private void sendMessageToUser(final int id, final String service,
@@ -466,6 +480,12 @@ public class MessageCenterService extends Service {
 			ArrayList<String> digestFields = intent
 					.getStringArrayListExtra("digestFields");
 			this.config(id, digestThreshold, compressThreshold, digestFields);
+			break;
+		case MessageCenterService.CMD_REQUEST_MSG:
+			String msgId = intent.getStringExtra("msgId");
+			if (msgId != null) {
+				this.requestMessage(id, msgId);
+			}
 			break;
 		}
 		Log.i(TAG, "successfully processed one command");

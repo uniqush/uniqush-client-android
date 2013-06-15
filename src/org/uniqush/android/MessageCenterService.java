@@ -55,7 +55,7 @@ public class MessageCenterService extends Service {
 	protected final static int CMD_SEND_MSG_TO_USER = 3;
 	protected final static int CMD_REQUEST_MSG = 4;
 	protected final static int CMD_CONFIG = 5;
-	protected final static int CMD_VISIBILITY = 6;
+	protected final static int CMD_SET_VISIBILITY = 6;
 	protected final static int CMD_MAX_ID_REQUIRES_CONN = 7;
 	protected final static int CMD_SUBSCRIBE = 8;
 	protected final static int CMD_UNSUBSCRIBE = 9;
@@ -366,6 +366,20 @@ public class MessageCenterService extends Service {
 
 		task.execute(Integer.valueOf(id));
 	}
+	
+	private void setVisibility(int id, final boolean visible) {
+
+		AsyncTryWithExpBackOff task = new AsyncTryWithExpBackOff() {
+			@Override
+			protected void call() throws InterruptedException, IOException {
+				if (!isConnected()) {
+					throw new IOException("Not connected for config");
+				}
+				center.setVisibility(visible);
+			}
+		};
+		task.execute(Integer.valueOf(id));
+	}
 
 	@SuppressWarnings("unchecked")
 	@Override
@@ -486,6 +500,10 @@ public class MessageCenterService extends Service {
 			if (msgId != null) {
 				this.requestMessage(id, msgId);
 			}
+			break;
+		case MessageCenterService.CMD_SET_VISIBILITY:
+			boolean visible = intent.getBooleanExtra("visible", true);
+			this.setVisibility(id, visible);
 			break;
 		}
 		Log.i(TAG, "successfully processed one command");

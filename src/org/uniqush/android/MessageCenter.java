@@ -275,6 +275,43 @@ public class MessageCenter {
 	}
 
 	/**
+	 * Let's first define some terms:
+	 * 
+	 * online - a client is online means the client is connecting with the
+	 * server.
+	 * 
+	 * offline - a client is offline when it is not online.
+	 * 
+	 * visible - a client is visible if the client is online and has not
+	 * explicitly told the server that it is invisible.
+	 * 
+	 * invisible - a client is invisible if: a) it is offline or b) it is online
+	 * but explicitly told the server it is invisible.
+	 * 
+	 * A client will receive a message or its digest through a direct connection
+	 * with the server if it is *online*.
+	 * 
+	 * When a message needs to be sent to a user, the server will send a
+	 * notification to all devices under the server, iff there is no visible
+	 * client under the user.
+	 * 
+	 * @param context
+	 * @param id
+	 * @param visible
+	 *            true for visible. false for invisible (but can still receive
+	 *            the message/digest.)
+	 */
+	public void setVisibility(Context context, int id, boolean visible) {
+		Intent intent = new Intent(context, MessageCenterService.class);
+		intent.putExtra("c", MessageCenterService.CMD_SET_VISIBILITY);
+		intent.putExtra("connection", this.defaultParam.toString());
+		intent.putExtra("token", this.defaultToken);
+		intent.putExtra("id", id);
+		intent.putExtra("visible", visible);
+		context.startService(intent);
+	}
+
+	/**
 	 * Set the parameter for the connection.
 	 * 
 	 * @param context

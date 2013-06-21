@@ -22,60 +22,73 @@ import java.util.Collection;
 import java.util.Hashtable;
 import java.util.Iterator;
 
-import org.uniqush.client.MessageCenter;
-
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.util.Log;
 
 class ResourceManager {
-	private String[] senderIds;
 	private Hashtable<String, ConnectionParameter> connMap;
-	private MessageCenter center;
 
 	protected static ResourceManager manager;
 	final private static String TAG = "ResourceManager";
 	private static String PREF_NAME = "uniqush";
 	private static String MSG_HANDLER = "message-handler-class";
 	private static String SENDER_IDS = "sender-ids";
-	
+
+	/**
+	 * TODO put it somewhere else. Dear java: don't you think this method is
+	 * useful and deserve a chance to get into the standard library?
+	 * 
+	 * @param col
+	 * @param delim
+	 * @return
+	 */
 	public static String join(Collection<?> col, String delim) {
-	    StringBuilder sb = new StringBuilder();
-	    Iterator<?> iter = col.iterator();
-	    if (iter.hasNext())
-	        sb.append(iter.next().toString());
-	    while (iter.hasNext()) {
-	        sb.append(delim);
-	        sb.append(iter.next().toString());
-	    }
-	    return sb.toString();
+		StringBuilder sb = new StringBuilder();
+		Iterator<?> iter = col.iterator();
+		if (iter.hasNext())
+			sb.append(iter.next().toString());
+		while (iter.hasNext()) {
+			sb.append(delim);
+			sb.append(iter.next().toString());
+		}
+		return sb.toString();
 	}
+
+	/**
+	 * TODO put it somewhere else. Dear java: don't you think this method is
+	 * useful and deserve a chance to get into the standard library?
+	 */
 	public static String join(String[] col, String delim) {
-	    StringBuilder sb = new StringBuilder();
-	    
-	    if (col == null) {
-	    	return "";
-	    }
-	    if (col.length == 0) {
-	    	return "";
-	    }
-	    sb.append(col[0]);
-	    for (int i = 1; i < col.length; i++) {
-	    	sb.append(delim);
-	    	sb.append(col[i]);
-	    }
-	    return sb.toString();
+		StringBuilder sb = new StringBuilder();
+
+		if (col == null) {
+			return "";
+		}
+		if (col.length == 0) {
+			return "";
+		}
+		sb.append(col[0]);
+		for (int i = 1; i < col.length; i++) {
+			sb.append(delim);
+			sb.append(col[i]);
+		}
+		return sb.toString();
 	}
-	public static void setSenderIds(Context context, String []senderIds) {
+
+	public static void setSenderIds(Context context, String[] senderIds) {
 		String sids = join(senderIds, "\t");
+		if (sids.length() <= 0) {
+			return;
+		}
 		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
 				Context.MODE_PRIVATE);
 		Editor editor = pref.edit();
 		editor.putString(SENDER_IDS, sids);
 		editor.commit();
 	}
-	
+
 	public static String[] getSenderIds(Context context) {
 		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
 				Context.MODE_PRIVATE);
@@ -83,7 +96,7 @@ class ResourceManager {
 		String[] ret = sids.split("\t");
 		return ret;
 	}
-	
+
 	public static void setMessageHandler(Context context, String className)
 			throws ClassNotFoundException, SecurityException,
 			NoSuchMethodException {
@@ -141,22 +154,20 @@ class ResourceManager {
 		connMap.put(param.toString(), param);
 	}
 
+	/**
+	 * Connection parameters should not be stored by uniqush because it contains
+	 * user's token which is sensible data.
+	 * 
+	 * @param id
+	 * @return
+	 */
 	public ConnectionParameter getConnectionParameter(String id) {
 		ConnectionParameter ret = connMap.get(id);
 		return ret;
 	}
 
-	public MessageCenter getMessageCenter() {
-		if (this.center == null) {
-			this.center = new MessageCenter();
-		}
-		return this.center;
-	}
-
 	protected ResourceManager() {
-		this.senderIds = null;
 		this.connMap = new Hashtable<String, ConnectionParameter>();
-		this.center = new MessageCenter();
 	}
 
 }

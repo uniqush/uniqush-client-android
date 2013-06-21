@@ -39,8 +39,7 @@ public class GCMIntentService extends GCMBaseIntentService {
 
 	@Override
 	protected String[] getSenderIds(Context context) {
-		String[] senderIds = ResourceManager.getResourceManager()
-				.getSenderIds();
+		String[] senderIds = ResourceManager.getSenderIds(context);
 		Log.i(TAG, "request sender ids:");
 
 		for (String s : senderIds) {

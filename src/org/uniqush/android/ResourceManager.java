@@ -146,21 +146,6 @@ class ResourceManager {
 		return ret;
 	}
 
-	public String[] getSenderIds() {
-		return this.senderIds;
-	}
-
-	public void setSenderIds(String... senderIds) {
-		int n = senderIds.length;
-		this.senderIds = new String[n];
-
-		int i = 0;
-		for (String s : senderIds) {
-			this.senderIds[i] = s;
-			i++;
-		}
-	}
-
 	public MessageCenter getMessageCenter() {
 		if (this.center == null) {
 			this.center = new MessageCenter();

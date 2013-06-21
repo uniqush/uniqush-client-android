@@ -33,11 +33,8 @@ public class MessageCenter {
 	private static String TAG = "UniqushMessageCenter";
 	private ConnectionParameter defaultParam;
 	private String defaultToken;
-	private String[] senderIds;
 
 	/**
-	 * This method should always be called before any other call.
-	 * 
 	 * It will set the handler's class name and check if the message handler
 	 * follows the following requirements: 1. A message handler has to implement
 	 * org.uniqush.android.MessageHandler 2. A message handler's constructor
@@ -56,7 +53,7 @@ public class MessageCenter {
 	 * @throws ClassNotFoundException
 	 * @throws NoSuchMethodException
 	 */
-	public static void setMessageHandler(Context context, String className)
+	private static void setMessageHandler(Context context, String className)
 			throws SecurityException, ClassNotFoundException,
 			NoSuchMethodException {
 		ResourceManager.setMessageHandler(context, className);
@@ -66,21 +63,41 @@ public class MessageCenter {
 		context.startService(intent);
 	}
 
+	/**
+	 * This method has to be called in the very first.
+	 * 
+	 * It will set the handler's class name and check if the message handler
+	 * follows the following requirements: 1. A message handler has to implement
+	 * org.uniqush.android.MessageHandler 2. A message handler's constructor
+	 * should take one and only one parameter: a Context
+	 * 
+	 * If the passed message hander satisfies the requirements above, an
+	 * instance of the message handler will be created.
+	 * 
+	 * In the constructor of the message handler, the user may want to create an
+	 * org.uniqush.android.MessageCenter instance and call the connect() method
+	 * to connect to the server.
+	 * 
+	 * Exceptions may be thrown if the message handler does not satisfy the
+	 * requirement mentioned above.
+	 * 
+	 * Meanwhile, the sender ids will be stored for further use.
+	 * 
+	 * @param context
+	 * @param messageHandlerClassName
+	 * @param senderIds
+	 * @throws SecurityException
+	 * @throws ClassNotFoundException
+	 * @throws NoSuchMethodException
+	 */
 	public static void init(Context context, String messageHandlerClassName,
-			String[] senderIds) throws SecurityException,
+			String... senderIds) throws SecurityException,
 			ClassNotFoundException, NoSuchMethodException {
 		MessageCenter.setMessageHandler(context, messageHandlerClassName);
 		ResourceManager.setSenderIds(context, senderIds);
 	}
 
-	public MessageCenter(Context context, String... senderIds) {
-		this.senderIds = new String[senderIds.length];
-		int i = 0;
-		for (String s : senderIds) {
-			this.senderIds[i] = new String(s);
-			i++;
-			ResourceManager.getResourceManager().setSenderIds(s);
-		}
+	public MessageCenter(Context context) {
 	}
 
 	/**

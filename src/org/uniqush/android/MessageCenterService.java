@@ -451,8 +451,7 @@ public class MessageCenterService extends Service {
 			String regId = GCMRegistrar.getRegistrationId(this);
 			if (regId.equals("")) {
 				Log.i(TAG, "not registered");
-				GCMRegistrar.register(this, ResourceManager
-						.getResourceManager().getSenderIds());
+				GCMRegistrar.register(this, ResourceManager.getSenderIds(this));
 				break;
 			} else {
 				if (GCMRegistrar.isRegisteredOnServer(this)) {

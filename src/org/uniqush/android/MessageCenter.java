@@ -66,6 +66,13 @@ public class MessageCenter {
 		context.startService(intent);
 	}
 
+	public static void init(Context context, String messageHandlerClassName,
+			String[] senderIds) throws SecurityException,
+			ClassNotFoundException, NoSuchMethodException {
+		MessageCenter.setMessageHandler(context, messageHandlerClassName);
+		ResourceManager.setSenderIds(context, senderIds);
+	}
+
 	public MessageCenter(Context context, String... senderIds) {
 		this.senderIds = new String[senderIds.length];
 		int i = 0;
@@ -280,13 +287,13 @@ public class MessageCenter {
 	 * online - a client is online means the client is connecting with the
 	 * server.
 	 * 
-	 * offline - a client is offline when it is not online.
+	 * off-line - a client is off line when it is not online.
 	 * 
 	 * visible - a client is visible if the client is online and has not
 	 * explicitly told the server that it is invisible.
 	 * 
-	 * invisible - a client is invisible if: a) it is offline or b) it is online
-	 * but explicitly told the server it is invisible.
+	 * invisible - a client is invisible if: a) it is off line or b) it is
+	 * online but explicitly told the server it is invisible.
 	 * 
 	 * A client will receive a message or its digest through a direct connection
 	 * with the server if it is *online*.
@@ -297,6 +304,8 @@ public class MessageCenter {
 	 * 
 	 * @param context
 	 * @param id
+	 *            The id used to identify this call when reporting the status of
+	 *            this call.
 	 * @param visible
 	 *            true for visible. false for invisible (but can still receive
 	 *            the message/digest.)

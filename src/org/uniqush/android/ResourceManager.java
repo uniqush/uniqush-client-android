@@ -18,7 +18,10 @@
 package org.uniqush.android;
 
 import java.lang.reflect.Constructor;
+import java.util.Collection;
 import java.util.Hashtable;
+import java.util.Iterator;
+
 import org.uniqush.client.MessageCenter;
 
 import android.content.Context;
@@ -35,7 +38,52 @@ class ResourceManager {
 	final private static String TAG = "ResourceManager";
 	private static String PREF_NAME = "uniqush";
 	private static String MSG_HANDLER = "message-handler-class";
-
+	private static String SENDER_IDS = "sender-ids";
+	
+	public static String join(Collection<?> col, String delim) {
+	    StringBuilder sb = new StringBuilder();
+	    Iterator<?> iter = col.iterator();
+	    if (iter.hasNext())
+	        sb.append(iter.next().toString());
+	    while (iter.hasNext()) {
+	        sb.append(delim);
+	        sb.append(iter.next().toString());
+	    }
+	    return sb.toString();
+	}
+	public static String join(String[] col, String delim) {
+	    StringBuilder sb = new StringBuilder();
+	    
+	    if (col == null) {
+	    	return "";
+	    }
+	    if (col.length == 0) {
+	    	return "";
+	    }
+	    sb.append(col[0]);
+	    for (int i = 1; i < col.length; i++) {
+	    	sb.append(delim);
+	    	sb.append(col[i]);
+	    }
+	    return sb.toString();
+	}
+	public static void setSenderIds(Context context, String []senderIds) {
+		String sids = join(senderIds, "\t");
+		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
+				Context.MODE_PRIVATE);
+		Editor editor = pref.edit();
+		editor.putString(SENDER_IDS, sids);
+		editor.commit();
+	}
+	
+	public static String[] getSenderIds(Context context) {
+		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
+				Context.MODE_PRIVATE);
+		String sids = pref.getString(SENDER_IDS, "");
+		String[] ret = sids.split("\t");
+		return ret;
+	}
+	
 	public static void setMessageHandler(Context context, String className)
 			throws ClassNotFoundException, SecurityException,
 			NoSuchMethodException {

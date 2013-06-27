@@ -297,7 +297,21 @@ public class MessageCenter {
 		intent.putExtra("msgId", msgId);
 		context.startService(intent);
 	}
-
+	public void requestAllCachedMessages(Context context, int id, String... excludes) {
+		Intent intent = new Intent(context, MessageCenterService.class);
+		intent.putExtra("c", MessageCenterService.CMD_REQUEST_ALL_CACHED_MSG);
+		intent.putExtra("connection", this.defaultParam.toString());
+		intent.putExtra("token", this.defaultToken);
+		intent.putExtra("id", id);
+		if (excludes.length > 0) {
+			ArrayList<String> ex = new ArrayList<String>(excludes.length);
+			for (String e : excludes) {
+				ex.add(e);
+			}
+			intent.putExtra("excludes", ex);
+		}
+		context.startService(intent);
+	}
 	/**
 	 * Let's first define some terms:
 	 * 

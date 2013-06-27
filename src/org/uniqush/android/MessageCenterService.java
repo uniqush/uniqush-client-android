@@ -56,12 +56,13 @@ public class MessageCenterService extends Service {
 	protected final static int CMD_REQUEST_MSG = 4;
 	protected final static int CMD_CONFIG = 5;
 	protected final static int CMD_SET_VISIBILITY = 6;
-	protected final static int CMD_MAX_ID_REQUIRES_CONN = 7;
-	protected final static int CMD_SUBSCRIBE = 8;
-	protected final static int CMD_UNSUBSCRIBE = 9;
-	protected final static int CMD_MESSAGE_DIGEST = 10;
-	protected final static int CMD_HANDLER_READY = 11;
-	protected final static int CMD_MAX_CMD_ID = 12;
+	protected final static int CMD_REQUEST_ALL_CACHED_MSG = 7;
+	protected final static int CMD_MAX_ID_REQUIRES_CONN = 8;
+	protected final static int CMD_SUBSCRIBE = 9;
+	protected final static int CMD_UNSUBSCRIBE = 10;
+	protected final static int CMD_MESSAGE_DIGEST = 11;
+	protected final static int CMD_HANDLER_READY = 12;
+	protected final static int CMD_MAX_CMD_ID = 13;
 
 	abstract class AsyncTryWithExpBackOff extends
 			AsyncTask<Integer, Void, Void> {
@@ -208,7 +209,24 @@ public class MessageCenterService extends Service {
 		};
 		task.execute(Integer.valueOf(id));
 	}
+	private void requestAllCachedMessages(final int id, final ArrayList<String> excludes) {
+		Log.i(TAG, "requestAllCachedMessages");
+		if (this.defaultParam == null) {
+			return;
+		}
 
+		AsyncTryWithExpBackOff task = new AsyncTryWithExpBackOff() {
+			@Override
+			protected void call() throws InterruptedException, IOException {
+				if (excludes == null || excludes.size() == 0) {
+					center.requestAllCachedMessages();
+				} else {
+					center.requestAllCachedMessages(excludes.toArray(new String[excludes.size()]));
+				}
+			}
+		};
+		task.execute(Integer.valueOf(id));
+	}
 	private void sendMessageToUser(final int id, final String service,
 			final String username, final Message msg, final int ttl) {
 		Log.i(TAG, "sendMessageToUser");
@@ -503,6 +521,10 @@ public class MessageCenterService extends Service {
 		case MessageCenterService.CMD_SET_VISIBILITY:
 			boolean visible = intent.getBooleanExtra("visible", true);
 			this.setVisibility(id, visible);
+			break;
+		case MessageCenterService.CMD_REQUEST_ALL_CACHED_MSG:
+			ArrayList<String> excludes = intent.getStringArrayListExtra("excludes");
+			this.requestAllCachedMessages(id, excludes);
 			break;
 		}
 		Log.i(TAG, "successfully processed one command");

@@ -38,7 +38,7 @@ class ResourceManager {
 
 	/**
 	 * TODO put it somewhere else. Dear java: don't you think this method is
-	 * useful and deserve a chance to get into the standard library?
+	 * useful and deserves a chance to get into the standard library?
 	 * 
 	 * @param col
 	 * @param delim
@@ -58,7 +58,7 @@ class ResourceManager {
 
 	/**
 	 * TODO put it somewhere else. Dear java: don't you think this method is
-	 * useful and deserve a chance to get into the standard library?
+	 * useful and deserves a chance to get into the standard library?
 	 */
 	public static String join(String[] col, String delim) {
 		StringBuilder sb = new StringBuilder();

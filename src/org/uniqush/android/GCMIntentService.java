@@ -80,13 +80,13 @@ public class GCMIntentService extends GCMBaseIntentService {
 
 		for (String s : extras) {
 			Log.i(TAG, "[" + s + "]=" + intent.getStringExtra(s));
-			if (s.equals("uniqush.msgsize")) {
+			if (s.equals("uniqush.sz")) {
 				size = Integer.parseInt(intent.getStringExtra(s));
-			} else if (s.equals("uniqush.msgid")) {
+			} else if (s.equals("uniqush.id")) {
 				msgId = intent.getStringExtra(s);
-			} else if (s.equals("uniqush.sender")) {
+			} else if (s.equals("uniqush.sr")) {
 				sender = intent.getStringExtra(s);
-			} else if (s.equals("uniqush.sender-service")) {
+			} else if (s.equals("uniqush.ss")) {
 				senderService = intent.getStringExtra(s);
 			} else {
 				params.put(s, intent.getStringExtra(s));

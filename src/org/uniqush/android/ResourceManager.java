@@ -27,6 +27,8 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.util.Log;
 
+import org.uniqush.client.CredentialProvider;
+
 class ResourceManager {
 	private Hashtable<String, ConnectionParameter> connMap;
 
@@ -34,6 +36,7 @@ class ResourceManager {
 	final private static String TAG = "ResourceManager";
 	private static String PREF_NAME = "uniqush";
 	private static String MSG_HANDLER = "message-handler-class";
+	private static String CRED_PROVIDER = "credential-provider-class";
 	private static String SENDER_IDS = "sender-ids";
 
 	/**
@@ -96,6 +99,26 @@ class ResourceManager {
 		String[] ret = sids.split("\t");
 		return ret;
 	}
+	
+	public static void setCredentialProvider(Context context, String className)
+			throws ClassNotFoundException, SecurityException,
+			NoSuchMethodException {
+		Log.i(TAG, "credential provider class name: " + className);
+		Class<?> credentialProvider = Class.forName(className);
+		if (!CredentialProvider.class.isAssignableFrom(credentialProvider)) {
+			throw new ClassNotFoundException(className
+					+ " is not an implementation of "
+					+ CredentialProvider.class.getName());
+		}
+		credentialProvider.getConstructor(Context.class);
+
+		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
+				Context.MODE_PRIVATE);
+		Editor editor = pref.edit();
+		editor.putString(CRED_PROVIDER, className);
+		editor.commit();
+		Log.i(TAG, "committed");
+	}
 
 	public static void setMessageHandler(Context context, String className)
 			throws ClassNotFoundException, SecurityException,
@@ -115,6 +138,32 @@ class ResourceManager {
 		editor.putString(MSG_HANDLER, className);
 		editor.commit();
 		Log.i(TAG, "committed");
+	}
+
+	public static CredentialProvider getCredentialProvider(Context context) {
+		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
+				Context.MODE_PRIVATE);
+		String className = pref.getString(CRED_PROVIDER, null);
+		if (className == null) {
+			Log.i(TAG, "credential provider has not been set");
+			return null;
+		}
+		Log.i(TAG, "credential provider class name: " + className);
+
+		try {
+			Class<?> credentialProviderClass = Class.forName(className);
+			Constructor<?> constructor = credentialProviderClass
+					.getConstructor(Context.class);
+			Object obj = constructor.newInstance(context);
+			if (obj instanceof CredentialProvider) {
+				return (CredentialProvider) obj;
+			}
+			throw new InstantiationException(
+					"should implement org.uniqush.client.CredentialProvider");
+		} catch (Exception e) {
+			Log.e(TAG, e.getClass().getName() + ": " + e.getMessage());
+		}
+		return null;
 	}
 
 	public static MessageHandler getMessageHandler(Context context) {

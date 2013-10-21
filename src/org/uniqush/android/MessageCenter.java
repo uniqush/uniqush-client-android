@@ -32,7 +32,6 @@ public class MessageCenter {
 
 	private static String TAG = "UniqushMessageCenter";
 	private ConnectionParameter defaultParam;
-	private String defaultToken;
 
 	/**
 	 * It will set the handler's class name and check if the message handler

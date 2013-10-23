@@ -70,7 +70,7 @@ public class MessageCenter {
 	 * org.uniqush.android.MessageHandler 2. A message handler's constructor
 	 * should take one and only one parameter: a Context
 	 * 
-	 * If the passed message hander satisfies the requirements above, an
+	 * If the passed message handler satisfies the requirements above, an
 	 * instance of the message handler will be created.
 	 * 
 	 * In the constructor of the message handler, the user may want to create an
@@ -83,15 +83,18 @@ public class MessageCenter {
 	 * Meanwhile, the sender ids will be stored for further use.
 	 * 
 	 * @param context
-	 * @param messageHandlerClassName
+	 * @param messageHandlerClassName: Implementation of org.uniqush.android.MessageHandler
+	 * @param credentialProviderClassName: Implementation of org.uniqush.client.CredentialProvider
 	 * @param senderIds
 	 * @throws SecurityException
 	 * @throws ClassNotFoundException
 	 * @throws NoSuchMethodException
 	 */
 	public static void init(Context context, String messageHandlerClassName,
+			String credentialProviderClassName,
 			String... senderIds) throws SecurityException,
 			ClassNotFoundException, NoSuchMethodException {
+		ResourceManager.setCredentialProvider(context, credentialProviderClassName);
 		MessageCenter.setMessageHandler(context, messageHandlerClassName);
 		ResourceManager.setSenderIds(context, senderIds);
 	}

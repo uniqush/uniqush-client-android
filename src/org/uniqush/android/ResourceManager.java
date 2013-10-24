@@ -35,6 +35,7 @@ class ResourceManager {
 	protected static ResourceManager manager;
 	final private static String TAG = "ResourceManager";
 	private static String PREF_NAME = "uniqush";
+	private static String USER_INFO_PROVIDER = "user-info-provider";
 	private static String MSG_HANDLER = "message-handler-class";
 	private static String CRED_PROVIDER = "credential-provider-class";
 	private static String SENDER_IDS = "sender-ids";
@@ -99,7 +100,27 @@ class ResourceManager {
 		String[] ret = sids.split("\t");
 		return ret;
 	}
-	
+
+	public static void setUserInfoProvider(Context context, String className)
+			throws ClassNotFoundException, SecurityException,
+			NoSuchMethodException {
+		Log.i(TAG, "user info provider class name: " + className);
+		Class<?> userInfoProvider = Class.forName(className);
+		if (!CredentialProvider.class.isAssignableFrom(userInfoProvider)) {
+			throw new ClassNotFoundException(className
+					+ " is not an implementation of "
+					+ UserInfoProvider.class.getName());
+		}
+		userInfoProvider.getConstructor(Context.class);
+
+		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
+				Context.MODE_PRIVATE);
+		Editor editor = pref.edit();
+		editor.putString(USER_INFO_PROVIDER, className);
+		editor.commit();
+		Log.i(TAG, "committed");
+	}
+
 	public static void setCredentialProvider(Context context, String className)
 			throws ClassNotFoundException, SecurityException,
 			NoSuchMethodException {
@@ -138,6 +159,31 @@ class ResourceManager {
 		editor.putString(MSG_HANDLER, className);
 		editor.commit();
 		Log.i(TAG, "committed");
+	}
+
+	public static CredentialProvider getUserInfoProvider(Context context) {
+		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
+				Context.MODE_PRIVATE);
+		String className = pref.getString(USER_INFO_PROVIDER, null);
+		if (className == null) {
+			Log.i(TAG, "user info provider has not been set");
+			return null;
+		}
+		Log.i(TAG, "user info provider class name: " + className);
+
+		try {
+			Class<?> userInfoProvider = Class.forName(className);
+			Constructor<?> constructor = userInfoProvider.getConstructor(Context.class);
+			Object obj = constructor.newInstance(context);
+			if (obj instanceof UserInfoProvider) {
+				return (UserInfoProvider) obj;
+			}
+			throw new InstantiationException(
+					"should implement org.uniqush.client.UserInfoProvider");
+		} catch (Exception e) {
+			Log.e(TAG, e.getClass().getName() + ": " + e.getMessage());
+		}
+		return null;
 	}
 
 	public static CredentialProvider getCredentialProvider(Context context) {

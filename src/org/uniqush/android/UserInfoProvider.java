@@ -7,5 +7,6 @@ public interface UserInfoProvider extends CredentialProvider {
 	String getService();
 	String getHost();
 	int getPort();
-	String getMessageHandlerClassName(String host, int port, String service, String username);
+	String[] getSenderIds();
+	MessageHandler getMessageHandler(String host, int port, String service, String username);
 }

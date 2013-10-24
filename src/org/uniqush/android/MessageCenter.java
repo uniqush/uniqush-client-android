@@ -32,71 +32,28 @@ public class MessageCenter {
 
 	private static String TAG = "UniqushMessageCenter";
 	private ConnectionParameter defaultParam;
-
-	/**
-	 * It will set the handler's class name and check if the message handler
-	 * follows the following requirements: 1. A message handler has to implement
-	 * org.uniqush.android.MessageHandler 2. A message handler's constructor
-	 * should take one and only one parameter: a Context
-	 * 
-	 * If the passed message hander satisfies the requirements above, an
-	 * instance of the message handler will be created.
-	 * 
-	 * In the constructor of the message handler, the user may want to create an
-	 * org.uniqush.android.MessageCenter instance and call the connect() method
-	 * to connect to the server.
-	 * 
-	 * @param context
-	 * @param className
-	 * @throws SecurityException
-	 * @throws ClassNotFoundException
-	 * @throws NoSuchMethodException
-	 */
-	private static void setMessageHandler(Context context, String className)
-			throws SecurityException, ClassNotFoundException,
-			NoSuchMethodException {
-		ResourceManager.setMessageHandler(context, className);
-
-		Intent intent = new Intent(context, MessageCenterService.class);
-		intent.putExtra("c", MessageCenterService.CMD_HANDLER_READY);
-		context.startService(intent);
-	}
-
+	
 	/**
 	 * This method has to be called in the very first.
 	 * 
-	 * It will set the handler's class name and check if the message handler
-	 * follows the following requirements: 1. A message handler has to implement
-	 * org.uniqush.android.MessageHandler 2. A message handler's constructor
-	 * should take one and only one parameter: a Context
+	 * The user should provide a class name of an implementation of UserInfoProvider.
+	 * The implementation should follows the following requirements:
+	 * 1. It has to implement org.uniqush.android.UserInfoProvider
+	 * 2. It must have a constructor which takes one and only one parameter, a Context
 	 * 
-	 * If the passed message handler satisfies the requirements above, an
-	 * instance of the message handler will be created.
-	 * 
-	 * In the constructor of the message handler, the user may want to create an
-	 * org.uniqush.android.MessageCenter instance and call the connect() method
-	 * to connect to the server.
-	 * 
-	 * Exceptions may be thrown if the message handler does not satisfy the
-	 * requirement mentioned above.
-	 * 
-	 * Meanwhile, the sender ids will be stored for further use.
+	 * Exceptions may be thrown if the class does not satisfy the requirement
+	 * mentioned above.
 	 * 
 	 * @param context
-	 * @param messageHandlerClassName: Implementation of org.uniqush.android.MessageHandler
-	 * @param credentialProviderClassName: Implementation of org.uniqush.client.CredentialProvider
-	 * @param senderIds
+	 * @param userInfoProviderClassName
 	 * @throws SecurityException
 	 * @throws ClassNotFoundException
 	 * @throws NoSuchMethodException
 	 */
-	public static void init(Context context, String messageHandlerClassName,
-			String credentialProviderClassName,
-			String... senderIds) throws SecurityException,
+	public static void init(Context context, String userInfoProviderClassName)
+			throws SecurityException,
 			ClassNotFoundException, NoSuchMethodException {
-		ResourceManager.setCredentialProvider(context, credentialProviderClassName);
-		MessageCenter.setMessageHandler(context, messageHandlerClassName);
-		ResourceManager.setSenderIds(context, senderIds);
+		ResourceManager.setUserInfoProvider(context, userInfoProviderClassName);
 	}
 
 	public MessageCenter(Context context) {

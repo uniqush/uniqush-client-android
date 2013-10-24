@@ -19,7 +19,6 @@ package org.uniqush.android;
 
 import java.lang.reflect.Constructor;
 import java.util.Collection;
-import java.util.Hashtable;
 import java.util.Iterator;
 
 import android.content.Context;
@@ -30,15 +29,10 @@ import android.util.Log;
 import org.uniqush.client.CredentialProvider;
 
 class ResourceManager {
-	private Hashtable<String, ConnectionParameter> connMap;
-
 	protected static ResourceManager manager;
 	final private static String TAG = "ResourceManager";
 	private static String PREF_NAME = "uniqush";
 	private static String USER_INFO_PROVIDER = "user-info-provider";
-	private static String MSG_HANDLER = "message-handler-class";
-	private static String CRED_PROVIDER = "credential-provider-class";
-	private static String SENDER_IDS = "sender-ids";
 
 	/**
 	 * TODO put it somewhere else. Dear java: don't you think this method is
@@ -81,26 +75,6 @@ class ResourceManager {
 		return sb.toString();
 	}
 
-	public static void setSenderIds(Context context, String[] senderIds) {
-		String sids = join(senderIds, "\t");
-		if (sids.length() <= 0) {
-			return;
-		}
-		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
-				Context.MODE_PRIVATE);
-		Editor editor = pref.edit();
-		editor.putString(SENDER_IDS, sids);
-		editor.commit();
-	}
-
-	public static String[] getSenderIds(Context context) {
-		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
-				Context.MODE_PRIVATE);
-		String sids = pref.getString(SENDER_IDS, "");
-		String[] ret = sids.split("\t");
-		return ret;
-	}
-
 	public static void setUserInfoProvider(Context context, String className)
 			throws ClassNotFoundException, SecurityException,
 			NoSuchMethodException {
@@ -121,47 +95,7 @@ class ResourceManager {
 		Log.i(TAG, "committed");
 	}
 
-	public static void setCredentialProvider(Context context, String className)
-			throws ClassNotFoundException, SecurityException,
-			NoSuchMethodException {
-		Log.i(TAG, "credential provider class name: " + className);
-		Class<?> credentialProvider = Class.forName(className);
-		if (!CredentialProvider.class.isAssignableFrom(credentialProvider)) {
-			throw new ClassNotFoundException(className
-					+ " is not an implementation of "
-					+ CredentialProvider.class.getName());
-		}
-		credentialProvider.getConstructor(Context.class);
-
-		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
-				Context.MODE_PRIVATE);
-		Editor editor = pref.edit();
-		editor.putString(CRED_PROVIDER, className);
-		editor.commit();
-		Log.i(TAG, "committed");
-	}
-
-	public static void setMessageHandler(Context context, String className)
-			throws ClassNotFoundException, SecurityException,
-			NoSuchMethodException {
-		Log.i(TAG, "message handler class name: " + className);
-		Class<?> messageHandlerClass = Class.forName(className);
-		if (!MessageHandler.class.isAssignableFrom(messageHandlerClass)) {
-			throw new ClassNotFoundException(className
-					+ " is not an implementation of "
-					+ MessageHandler.class.getName());
-		}
-		messageHandlerClass.getConstructor(Context.class);
-
-		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
-				Context.MODE_PRIVATE);
-		Editor editor = pref.edit();
-		editor.putString(MSG_HANDLER, className);
-		editor.commit();
-		Log.i(TAG, "committed");
-	}
-
-	public static CredentialProvider getUserInfoProvider(Context context) {
+	public static UserInfoProvider getUserInfoProvider(Context context) {
 		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
 				Context.MODE_PRIVATE);
 		String className = pref.getString(USER_INFO_PROVIDER, null);
@@ -185,84 +119,4 @@ class ResourceManager {
 		}
 		return null;
 	}
-
-	public static CredentialProvider getCredentialProvider(Context context) {
-		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
-				Context.MODE_PRIVATE);
-		String className = pref.getString(CRED_PROVIDER, null);
-		if (className == null) {
-			Log.i(TAG, "credential provider has not been set");
-			return null;
-		}
-		Log.i(TAG, "credential provider class name: " + className);
-
-		try {
-			Class<?> credentialProviderClass = Class.forName(className);
-			Constructor<?> constructor = credentialProviderClass
-					.getConstructor(Context.class);
-			Object obj = constructor.newInstance(context);
-			if (obj instanceof CredentialProvider) {
-				return (CredentialProvider) obj;
-			}
-			throw new InstantiationException(
-					"should implement org.uniqush.client.CredentialProvider");
-		} catch (Exception e) {
-			Log.e(TAG, e.getClass().getName() + ": " + e.getMessage());
-		}
-		return null;
-	}
-
-	public static MessageHandler getMessageHandler(Context context) {
-		SharedPreferences pref = context.getSharedPreferences(PREF_NAME,
-				Context.MODE_PRIVATE);
-		String className = pref.getString(MSG_HANDLER, null);
-		if (className == null) {
-			Log.i(TAG, "message handler has not been set");
-			return null;
-		}
-		Log.i(TAG, "message handler class name: " + className);
-
-		try {
-			Class<?> messageHandlerClass = Class.forName(className);
-			Constructor<?> constructor = messageHandlerClass
-					.getConstructor(Context.class);
-			Object obj = constructor.newInstance(context);
-			if (obj instanceof MessageHandler) {
-				return (MessageHandler) obj;
-			}
-			throw new InstantiationException(
-					"should implement org.uniqush.android.MessageHandler");
-		} catch (Exception e) {
-			Log.e(TAG, e.getClass().getName() + ": " + e.getMessage());
-		}
-		return null;
-	}
-
-	public static ResourceManager getResourceManager() {
-		if (manager == null) {
-			manager = new ResourceManager();
-		}
-		return manager;
-	}
-
-	public void addConnectionParameter(ConnectionParameter param) {
-		connMap.put(param.toString(), param);
-	}
-
-	/**
-	 * Connection parameters should not be stored by uniqush because it contains
-	 * user's token which is sensible data.
-	 * 
-	 * @param id
-	 * @return
-	 */
-	public ConnectionParameter getConnectionParameter(String id) {
-		ConnectionParameter ret = connMap.get(id);
-		return ret;
-	}
-
-	protected ResourceManager() {
-		this.connMap = new Hashtable<String, ConnectionParameter>();
-	}
-
 }

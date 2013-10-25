@@ -43,7 +43,6 @@ public class MessageCenterService extends Service {
 	private Thread receiverThread;
 	private Semaphore threadLock;
 
-	private ConnectionParameter defaultParam;
 	private String defaultToken;
 	private MessageHandler handler;
 	private Semaphore handlerLock;

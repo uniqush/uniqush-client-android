@@ -31,7 +31,6 @@ import android.util.Log;
 public class MessageCenter {
 
 	private static String TAG = "UniqushMessageCenter";
-	private ConnectionParameter defaultParam;
 	
 	/**
 	 * This method has to be called in the very first.
@@ -95,13 +94,8 @@ public class MessageCenter {
 	 * @param msg
 	 */
 	public void sendMessageToServer(Context context, int id, Message msg) {
-		if (this.defaultParam == null || this.defaultToken == null) {
-			return;
-		}
 		Intent intent = new Intent(context, MessageCenterService.class);
 		intent.putExtra("c", MessageCenterService.CMD_SEND_MSG_TO_SERVER);
-		intent.putExtra("connection", this.defaultParam.toString());
-		intent.putExtra("token", this.defaultToken);
 		intent.putExtra("id", id);
 		intent.putExtra("msg", msg);
 		context.startService(intent);
@@ -136,8 +130,6 @@ public class MessageCenter {
 			String username, Message msg, int ttl) {
 		Intent intent = new Intent(context, MessageCenterService.class);
 		intent.putExtra("c", MessageCenterService.CMD_SEND_MSG_TO_USER);
-		intent.putExtra("connection", this.defaultParam.toString());
-		intent.putExtra("token", this.defaultToken);
 		intent.putExtra("id", id);
 		intent.putExtra("service", service);
 		intent.putExtra("username", username);
@@ -190,6 +182,14 @@ public class MessageCenter {
 			intent.putExtra("c", MessageCenterService.CMD_SUBSCRIBE);
 			context.startService(intent);
 		}
+	}
+	
+	public void subscribe(Context context, String username) {
+			GCMRegistrar.checkDevice(context);
+			Intent intent = new Intent(context, MessageCenterService.class);
+			intent.putExtra("c", MessageCenterService.CMD_SUBSCRIBE);
+			intent.putExtra("username", username);
+			context.startService(intent);
 	}
 
 	/**

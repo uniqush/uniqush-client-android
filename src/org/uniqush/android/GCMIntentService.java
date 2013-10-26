@@ -20,7 +20,6 @@ package org.uniqush.android;
 import java.util.HashMap;
 import java.util.Set;
 
-
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
@@ -53,7 +52,7 @@ public class GCMIntentService extends GCMBaseIntentService {
 	protected void onRegistered(Context context, String regId) {
 		Log.i(TAG, "Device registered: regId = " + regId);
 		Intent intent = new Intent(context, MessageCenterService.class);
-		intent.putExtra("c", MessageCenterService.CMD_SUBSCRIBE);
+		intent.putExtra("c", MessageCenterService.CMD_REGID_READY);
 		intent.putExtra("regId", regId);
 		context.startService(intent);
 	}

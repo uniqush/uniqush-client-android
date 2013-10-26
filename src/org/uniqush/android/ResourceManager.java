@@ -33,6 +33,7 @@ class ResourceManager {
 	final private static String TAG = "ResourceManager";
 	private static String PREF_NAME = "uniqush";
 	private static String USER_INFO_PROVIDER = "user-info-provider";
+	private static String USER_SUBSCRIPTION_PREFIX = "subscribed:";
 
 	/**
 	 * TODO put it somewhere else. Dear java: don't you think this method is
@@ -118,5 +119,17 @@ class ResourceManager {
 			Log.e(TAG, e.getClass().getName() + ": " + e.getMessage());
 		}
 		return null;
+	}
+	
+	public static void setSubscribed(Context context, String service, String username, boolean sub) {
+		SharedPreferences pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+		Editor editor = pref.edit();
+		editor.putBoolean(USER_SUBSCRIPTION_PREFIX + service + "," + username, sub);
+		editor.commit();
+	}
+	
+	public static boolean subscribed(Context context, String service, String username) {
+		SharedPreferences pref = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+		return pref.getBoolean(USER_SUBSCRIPTION_PREFIX + service + "," + username, false);
 	}
 }

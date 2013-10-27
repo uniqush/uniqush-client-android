@@ -135,4 +135,9 @@ public class ConnectionInfo {
 		}
 		return false;
 	}
+	
+	@Override
+	public String toString() {
+		return host + ":" + port + ";" + service + "," + username;
+	}
 }

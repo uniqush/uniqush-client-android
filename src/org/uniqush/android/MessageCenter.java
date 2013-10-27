@@ -1,5 +1,7 @@
 package org.uniqush.android;
 
+import com.google.android.gcm.GCMRegistrar;
+
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
@@ -28,11 +30,12 @@ public class MessageCenter {
 	public static void init(Context context, String userInfoProviderClassName)
 			throws SecurityException,
 			ClassNotFoundException, NoSuchMethodException {
+		GCMRegistrar.checkManifest(context);
 		ResourceManager.setUserInfoProvider(context, userInfoProviderClassName);
 	}
 	
 	public static void connect(Context context, int id) {
-		Log.i(TAG, "reconnect: " + id);
+		Log.i(TAG, "connect: " + id);
 		Intent intent = new Intent(context, MessageCenterService.class);
 		intent.putExtra("c", MessageCenterService.CMD_CONNECT);
 		intent.putExtra("id", id);

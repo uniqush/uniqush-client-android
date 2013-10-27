@@ -8,6 +8,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import android.app.Service;
 import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.IBinder;
 import android.util.Log;
 
@@ -25,7 +26,7 @@ public class MessageCenterService extends Service {
 	protected final static int CMD_CONFIG = 5;
 	protected final static int CMD_SET_VISIBILITY = 6;
 	protected final static int CMD_REQUEST_ALL_CACHED_MSG = 7;
-	protected final static int CMD_MAX_ID_REQUIRES_CONN = 8;
+	protected final static int CMD_ERROR_ACCOUNT_MISSING = 8;
 	protected final static int CMD_SUBSCRIBE = 9;
 	protected final static int CMD_UNSUBSCRIBE = 10;
 	protected final static int CMD_MESSAGE_DIGEST = 11;
@@ -50,6 +51,7 @@ public class MessageCenterService extends Service {
 		center = null;
 		readerThread = null;
 		handler = null;
+		Log.i(TAG, "service created");
 	}
 
 	private void setUserInfoProvider() {
@@ -80,6 +82,7 @@ public class MessageCenterService extends Service {
 	}
 
 	private void connect(int callId) {
+		Log.i(TAG, "connect with call id " + callId);
 		userInfoProviderLock.lock();
 		if (this.userInfoProvider == null) {
 			this.userInfoProvider = ResourceManager.getUserInfoProvider(this);
@@ -97,6 +100,12 @@ public class MessageCenterService extends Service {
 		UserInfoProvider uip = this.userInfoProvider;
 		userInfoProviderLock.unlock();
 
+		if (msgHandler == null || cinfo == null) {
+			Log.w(TAG, "msg handler or connection info is null");
+			return;
+		}
+
+		Log.i(TAG, "connect to " + cinfo.toString());
 		centerLock.writeLock().lock();
 		if (this.center != null) {
 			if (this.currentConn.equals(cinfo)) {
@@ -112,6 +121,7 @@ public class MessageCenterService extends Service {
 			this.center.connect(cinfo.getHostName(), cinfo.getPort(),
 					cinfo.getServiceName(), cinfo.getUserName(), msgHandler);
 		} catch (Exception e) {
+			Log.e(TAG, "Error on connection: " + e.toString());
 			this.center = null;
 			if (callId >= 0) {
 				msgHandler.onResult(callId, e);
@@ -126,6 +136,7 @@ public class MessageCenterService extends Service {
 		currentConn = cinfo;
 		centerLock.writeLock().unlock();
 
+		Log.i(TAG, "connected");
 		this.subscribe(callId);
 	}
 
@@ -214,8 +225,7 @@ public class MessageCenterService extends Service {
 		}
 
 		int cmd = intent.getIntExtra("c", -1);
-		int callId = intent.getIntExtra("id", -1);
-		Log.i(TAG, "onStartCommand");
+		final int callId = intent.getIntExtra("id", -1);
 
 		if (cmd <= 0 || cmd >= MessageCenterService.CMD_MAX_CMD_ID) {
 			Log.i(TAG, "wrong command: " + cmd);
@@ -224,15 +234,41 @@ public class MessageCenterService extends Service {
 		}
 
 		switch (cmd) {
+		// BOILERPLATE ALERT!
 		case CMD_USER_INFO_READY:
 			this.setUserInfoProvider();
 			this.getRegId();
 			break;
 		case CMD_REGID_READY:
-			this.subscribe(-1);
+			new AsyncTask<Void, Void, Void>() {
+				@Override
+				protected Void doInBackground(Void... params) {
+					subscribe(-1);
+					return null;
+				}
+			}.execute();
 			break;
 		case CMD_CONNECT:
-			this.connect(callId);
+			new AsyncTask<Void, Void, Void>() {
+				@Override
+				protected Void doInBackground(Void... params) {
+					connect(callId);
+					return null;
+				}
+			}.execute();
+			break;
+		case CMD_ERROR_ACCOUNT_MISSING:
+			new AsyncTask<Void, Void, Void>() {
+				@Override
+				protected Void doInBackground(Void... params) {
+					centerLock.readLock().lock();
+					if (handler != null) {
+						handler.onMissingAccount();
+					}
+					centerLock.readLock().unlock();
+					return null;
+				}
+			}.execute();
 			break;
 		}
 

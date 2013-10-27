@@ -39,7 +39,8 @@ public class GCMIntentService extends GCMBaseIntentService {
 
 	@Override
 	protected String[] getSenderIds(Context context) {
-		String[] senderIds = ResourceManager.getUserInfoProvider(context).getSenderIds();
+		String[] senderIds = ResourceManager.getUserInfoProvider(context)
+				.getSenderIds();
 		Log.i(TAG, "request sender ids:");
 
 		for (String s : senderIds) {
@@ -92,7 +93,7 @@ public class GCMIntentService extends GCMBaseIntentService {
 				params.put(s, intent.getStringExtra(s));
 			}
 		}
-		
+
 		Intent i = new Intent(context, MessageCenterService.class);
 		i.putExtra("c", MessageCenterService.CMD_MESSAGE_DIGEST);
 		i.putExtra("params", params);
@@ -113,6 +114,11 @@ public class GCMIntentService extends GCMBaseIntentService {
 	@Override
 	public void onError(Context context, String errorId) {
 		Log.i(TAG, "Received error: " + errorId);
+		if (errorId.equals("ACCOUNT_MISSING")) {
+			Intent i = new Intent(context, MessageCenterService.class);
+			i.putExtra("c", MessageCenterService.CMD_ERROR_ACCOUNT_MISSING);
+			context.startService(i);
+		}
 	}
 
 	@Override

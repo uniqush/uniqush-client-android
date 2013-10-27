@@ -61,10 +61,12 @@ public class GCMIntentService extends GCMBaseIntentService {
 	@Override
 	protected void onUnregistered(Context context, String regId) {
 		Log.i(TAG, "Device unregistered: regId = " + regId);
+		/*
 		Intent intent = new Intent(context, MessageCenterService.class);
 		intent.putExtra("c", MessageCenterService.CMD_UNSUBSCRIBE);
 		intent.putExtra("regId", regId);
 		context.startService(intent);
+		*/
 	}
 
 	@Override

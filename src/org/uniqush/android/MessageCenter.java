@@ -34,11 +34,20 @@ public class MessageCenter {
 		ResourceManager.setUserInfoProvider(context, userInfoProviderClassName);
 	}
 	
-	public static void connect(Context context, int id) {
-		Log.i(TAG, "connect: " + id);
+	private static void startService(Context context, int cmd, int id) {
 		Intent intent = new Intent(context, MessageCenterService.class);
-		intent.putExtra("c", MessageCenterService.CMD_CONNECT);
+		intent.putExtra("c", cmd);
 		intent.putExtra("id", id);
 		context.startService(intent);
+	}
+	
+	public static void connect(Context context, int id) {
+		Log.i(TAG, "connect: " + id);
+		startService(context, MessageCenterService.CMD_CONNECT, id);
+	}
+	
+	public static void stop(Context context, int id) {
+		Log.i(TAG, "stop: " + id);
+		startService(context, MessageCenterService.CMD_STOP, id);
 	}
 }

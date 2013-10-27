@@ -19,6 +19,7 @@ import com.google.android.gcm.GCMRegistrar;
 public class MessageCenterService extends Service {
 
 	private String TAG = "UniqushMessageCenterService";
+	protected final static int CMD_STOP = 0;
 	protected final static int CMD_CONNECT = 1;
 	protected final static int CMD_SEND_MSG_TO_SERVER = 2;
 	protected final static int CMD_SEND_MSG_TO_USER = 3;
@@ -54,6 +55,17 @@ public class MessageCenterService extends Service {
 		Log.i(TAG, "service created");
 	}
 
+	@Override
+	public void onDestroy() {
+		Log.i(TAG, "service destroyed");
+		centerLock.readLock().lock();
+		if (handler != null) {
+			handler.onServiceDestroyed();
+		}
+		centerLock.readLock().unlock();
+		this.disconnect();
+	}
+
 	private void setUserInfoProvider() {
 		userInfoProviderLock.lock();
 		userInfoProvider = ResourceManager.getUserInfoProvider(this);
@@ -74,6 +86,7 @@ public class MessageCenterService extends Service {
 					// XXX what should I do here?
 				}
 			}
+
 			this.center = null;
 			this.currentConn = null;
 			this.handler = null;
@@ -109,8 +122,14 @@ public class MessageCenterService extends Service {
 		centerLock.writeLock().lock();
 		if (this.center != null) {
 			if (this.currentConn.equals(cinfo)) {
-				centerLock.writeLock().unlock();
 				// We've already connected this server.
+				if (this.currentConn.shouldSubscribe() != cinfo
+						.shouldSubscribe()) {
+					centerLock.writeLock().unlock();
+					this.subscribe(callId);
+				} else {
+					centerLock.writeLock().unlock();
+				}
 				return;
 			}
 			this.disconnect();
@@ -134,6 +153,7 @@ public class MessageCenterService extends Service {
 		readerThread = new Thread(this.center);
 		readerThread.start();
 		currentConn = cinfo;
+		handler = msgHandler;
 		centerLock.writeLock().unlock();
 
 		Log.i(TAG, "connected");
@@ -149,6 +169,12 @@ public class MessageCenterService extends Service {
 		if (regid == null || regid.length() == 0) {
 			// We dot not have the registration id. Wait for it.
 			centerLock.readLock().unlock();
+			return;
+		}
+
+		if (center == null || handler == null || currentConn == null) {
+			centerLock.readLock().unlock();
+			Log.w(TAG, "regid is ready but the message center is not.");
 			return;
 		}
 		String service = this.currentConn.getServiceName();
@@ -190,11 +216,10 @@ public class MessageCenterService extends Service {
 			}
 			ResourceManager.setSubscribed(this, service, username, false);
 		}
-		centerLock.readLock().unlock();
-
 		if (callId >= 0) {
 			handler.onResult(callId, null);
 		}
+		centerLock.readLock().unlock();
 	}
 
 	private String getRegId() {
@@ -270,6 +295,11 @@ public class MessageCenterService extends Service {
 				}
 			}.execute();
 			break;
+		case CMD_STOP:
+			Log.i(TAG, "STOP");
+			this.disconnect();
+			this.stopSelf();
+			return START_NOT_STICKY;
 		}
 
 		return START_STICKY;

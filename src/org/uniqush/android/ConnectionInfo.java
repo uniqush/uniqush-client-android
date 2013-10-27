@@ -123,6 +123,10 @@ public class ConnectionInfo {
 	public boolean shouldSubscribe() {
 		return subscribe;
 	}
+	
+	protected void unsubscribe() {
+		this.subscribe = false;
+	}
 
 	@Override
 	public boolean equals(Object obj) {

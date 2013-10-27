@@ -37,11 +37,7 @@ public class MessageCenterService extends Service {
 	private Lock userInfoProviderLock;
 
 	private MessageCenter center;
-	private String currentService;
-	private String currentUsername;
-	private String currentHost;
-	private int currentPort;
-	private boolean shouldSubscribe;
+	private ConnectionInfo currentConn;
 	private MessageHandler handler;
 	private Thread readerThread;
 	private ReadWriteLock centerLock;
@@ -77,10 +73,8 @@ public class MessageCenterService extends Service {
 				}
 			}
 			this.center = null;
-			this.currentHost = null;
-			this.currentPort = -1;
-			this.currentService = null;
-			this.currentUsername = null;
+			this.currentConn = null;
+			this.handler = null;
 		}
 		centerLock.writeLock().unlock();
 	}
@@ -88,27 +82,24 @@ public class MessageCenterService extends Service {
 	private void connect(int callId) {
 		userInfoProviderLock.lock();
 		if (this.userInfoProvider == null) {
-			Log.wtf(TAG,
-					"UserInfoProvider is missing. call MessageCenter.init() first!");
-			userInfoProviderLock.unlock();
-			return;
+			this.userInfoProvider = ResourceManager.getUserInfoProvider(this);
+			if (this.userInfoProvider == null) {
+				Log.wtf(TAG,
+						"UserInfoProvider is missing. call MessageCenter.init() first!");
+				userInfoProviderLock.unlock();
+				return;
+			}
 		}
-		String service = this.userInfoProvider.getService();
-		String username = this.userInfoProvider.getUsername();
-		String host = this.userInfoProvider.getHost();
-		int port = this.userInfoProvider.getPort();
+		ConnectionInfo cinfo = this.userInfoProvider.getConnectionInfo();
 		MessageHandler msgHandler = this.userInfoProvider.getMessageHandler(
-				host, port, service, username);
-		boolean sub = this.userInfoProvider.subscribe();
+				cinfo.getHostName(), cinfo.getPort(), cinfo.getServiceName(),
+				cinfo.getUserName());
 		UserInfoProvider uip = this.userInfoProvider;
 		userInfoProviderLock.unlock();
 
 		centerLock.writeLock().lock();
 		if (this.center != null) {
-			if (currentService != null && currentService.equals(service)
-					&& currentUsername != null
-					&& currentUsername.equals(username) && currentHost != null
-					&& currentHost.equals(host) && currentPort == port) {
+			if (this.currentConn.equals(cinfo)) {
 				centerLock.writeLock().unlock();
 				// We've already connected this server.
 				return;
@@ -118,7 +109,8 @@ public class MessageCenterService extends Service {
 
 		this.center = new MessageCenter(uip);
 		try {
-			this.center.connect(host, port, service, username, msgHandler);
+			this.center.connect(cinfo.getHostName(), cinfo.getPort(),
+					cinfo.getServiceName(), cinfo.getUserName(), msgHandler);
 		} catch (Exception e) {
 			this.center = null;
 			if (callId >= 0) {
@@ -131,12 +123,7 @@ public class MessageCenterService extends Service {
 		}
 		readerThread = new Thread(this.center);
 		readerThread.start();
-		currentService = service;
-		currentUsername = username;
-		currentHost = host;
-		currentPort = port;
-		handler = msgHandler;
-		shouldSubscribe = sub;
+		currentConn = cinfo;
 		centerLock.writeLock().unlock();
 
 		this.subscribe(callId);
@@ -153,14 +140,15 @@ public class MessageCenterService extends Service {
 			centerLock.readLock().unlock();
 			return;
 		}
+		String service = this.currentConn.getServiceName();
+		String username = this.currentConn.getUserName();
 		HashMap<String, String> params = new HashMap<String, String>(3);
 		params.put("pushservicetype", "gcm");
-		params.put("service", this.currentService);
-		params.put("subscriber", this.currentUsername);
+		params.put("service", service);
+		params.put("subscriber", username);
 		params.put("regid", regid);
-		if (shouldSubscribe
-				&& !ResourceManager.subscribed(this, currentService,
-						currentUsername)) {
+		if (currentConn.shouldSubscribe()
+				&& !ResourceManager.subscribed(this, service, username)) {
 			// should subscribe.
 			try {
 				center.subscribe(params);
@@ -173,12 +161,10 @@ public class MessageCenterService extends Service {
 				centerLock.readLock().unlock();
 				return;
 			}
-			ResourceManager.setSubscribed(this, currentService,
-					currentUsername, true);
+			ResourceManager.setSubscribed(this, service, username, true);
 
-		} else if (!shouldSubscribe
-				&& ResourceManager.subscribed(this, currentService,
-						currentUsername)) {
+		} else if (!currentConn.shouldSubscribe()
+				&& ResourceManager.subscribed(this, service, username)) {
 			// should unsubscribe.
 			try {
 				center.unsubscribe(params);
@@ -191,8 +177,7 @@ public class MessageCenterService extends Service {
 				centerLock.readLock().unlock();
 				return;
 			}
-			ResourceManager.setSubscribed(this, currentService,
-					currentUsername, false);
+			ResourceManager.setSubscribed(this, service, username, false);
 		}
 		centerLock.readLock().unlock();
 

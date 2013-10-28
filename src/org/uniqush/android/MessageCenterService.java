@@ -12,6 +12,7 @@ import android.os.AsyncTask;
 import android.os.IBinder;
 import android.util.Log;
 
+import org.uniqush.client.Message;
 import org.uniqush.client.MessageCenter;
 
 import com.google.android.gcm.GCMRegistrar;
@@ -19,7 +20,6 @@ import com.google.android.gcm.GCMRegistrar;
 public class MessageCenterService extends Service {
 
 	private String TAG = "UniqushMessageCenterService";
-	protected final static int CMD_STOP = 0;
 	protected final static int CMD_CONNECT = 1;
 	protected final static int CMD_SEND_MSG_TO_SERVER = 2;
 	protected final static int CMD_SEND_MSG_TO_USER = 3;
@@ -32,8 +32,9 @@ public class MessageCenterService extends Service {
 	protected final static int CMD_UNSUBSCRIBE = 10;
 	protected final static int CMD_MESSAGE_DIGEST = 11;
 	protected final static int CMD_USER_INFO_READY = 12;
-	protected final static int CMD_REGID_READY = 13;
-	protected final static int CMD_MAX_CMD_ID = 14;
+	protected final static int CMD_STOP = 13;
+	protected final static int CMD_REGID_READY = 14;
+	protected final static int CMD_MAX_CMD_ID = 15;
 
 	private UserInfoProvider userInfoProvider;
 	private Lock userInfoProviderLock;
@@ -94,7 +95,7 @@ public class MessageCenterService extends Service {
 		centerLock.writeLock().unlock();
 	}
 
-	private void connect(int callId) {
+	private void connect(int callId, boolean onlyReportError) {
 		Log.i(TAG, "connect with call id " + callId);
 		userInfoProviderLock.lock();
 		if (this.userInfoProvider == null) {
@@ -126,9 +127,12 @@ public class MessageCenterService extends Service {
 				if (this.currentConn.shouldSubscribe() != cinfo
 						.shouldSubscribe()) {
 					centerLock.writeLock().unlock();
-					this.subscribe(callId);
+					this.subscribe(callId, onlyReportError);
 				} else {
 					centerLock.writeLock().unlock();
+					if (!onlyReportError && callId > 0) {
+						msgHandler.onResult(callId, null);
+					}
 				}
 				return;
 			}
@@ -142,12 +146,12 @@ public class MessageCenterService extends Service {
 		} catch (Exception e) {
 			Log.e(TAG, "Error on connection: " + e.toString());
 			this.center = null;
+			centerLock.writeLock().unlock();
 			if (callId >= 0) {
 				msgHandler.onResult(callId, e);
 			} else {
 				msgHandler.onError(e);
 			}
-			centerLock.writeLock().unlock();
 			return;
 		}
 		readerThread = new Thread(this.center);
@@ -157,10 +161,10 @@ public class MessageCenterService extends Service {
 		centerLock.writeLock().unlock();
 
 		Log.i(TAG, "connected");
-		this.subscribe(callId);
+		this.subscribe(callId, onlyReportError);
 	}
 
-	private void subscribe(int callId) {
+	private void subscribe(int callId, boolean onlyReportError) {
 		centerLock.readLock().lock();
 		if (center == null) {
 			return;
@@ -177,6 +181,7 @@ public class MessageCenterService extends Service {
 			Log.w(TAG, "regid is ready but the message center is not.");
 			return;
 		}
+		MessageHandler h = handler;
 		String service = this.currentConn.getServiceName();
 		String username = this.currentConn.getUserName();
 		HashMap<String, String> params = new HashMap<String, String>(3);
@@ -190,12 +195,12 @@ public class MessageCenterService extends Service {
 			try {
 				center.subscribe(params);
 			} catch (Exception e) {
-				if (callId >= 0) {
-					handler.onResult(callId, e);
-				} else {
-					handler.onError(e);
-				}
 				centerLock.readLock().unlock();
+				if (callId >= 0) {
+					h.onResult(callId, e);
+				} else {
+					h.onError(e);
+				}
 				return;
 			}
 			ResourceManager.setSubscribed(this, service, username, true);
@@ -206,20 +211,52 @@ public class MessageCenterService extends Service {
 			try {
 				center.unsubscribe(params);
 			} catch (Exception e) {
-				if (callId >= 0) {
-					handler.onResult(callId, e);
-				} else {
-					handler.onError(e);
-				}
 				centerLock.readLock().unlock();
+				if (callId > 0) {
+					h.onResult(callId, e);
+				} else {
+					h.onError(e);
+				}
 				return;
 			}
 			ResourceManager.setSubscribed(this, service, username, false);
 		}
-		if (callId >= 0) {
-			handler.onResult(callId, null);
+		centerLock.readLock().unlock();
+
+		if (!onlyReportError && callId > 0 && h != null) {
+			h.onResult(callId, null);
+		}
+	}
+
+	private void sendMessageToServer(int callId, Message msg) {
+		this.connect(callId, true);
+		centerLock.readLock().lock();
+		MessageHandler h = handler;
+		if (center == null) {
+			centerLock.readLock().unlock();
+			if (callId > 0 && h != null) {
+				h.onResult(callId, new Exception("Not ready"));
+			} else if (h != null) {
+				h.onError(new Exception("Not ready to send message"));
+			}
+			return;
+		}
+
+		try {
+			center.sendMessageToServer(msg);
+		} catch (Exception e) {
+			centerLock.readLock().unlock();
+			if (callId > 0 && h != null) {
+				h.onResult(callId, new Exception("Not ready"));
+			} else if (h != null) {
+				h.onError(new Exception("Not ready to send message"));
+			}
+			return;
 		}
 		centerLock.readLock().unlock();
+		if (callId > 0 && h != null) {
+			h.onResult(callId, null);
+		}
 	}
 
 	private String getRegId() {
@@ -251,6 +288,7 @@ public class MessageCenterService extends Service {
 
 		int cmd = intent.getIntExtra("c", -1);
 		final int callId = intent.getIntExtra("id", -1);
+		final Message msg = (Message)intent.getSerializableExtra("msg");
 
 		if (cmd <= 0 || cmd >= MessageCenterService.CMD_MAX_CMD_ID) {
 			Log.i(TAG, "wrong command: " + cmd);
@@ -268,7 +306,7 @@ public class MessageCenterService extends Service {
 			new AsyncTask<Void, Void, Void>() {
 				@Override
 				protected Void doInBackground(Void... params) {
-					subscribe(-1);
+					subscribe(-1, false);
 					return null;
 				}
 			}.execute();
@@ -277,7 +315,7 @@ public class MessageCenterService extends Service {
 			new AsyncTask<Void, Void, Void>() {
 				@Override
 				protected Void doInBackground(Void... params) {
-					connect(callId);
+					connect(callId, false);
 					return null;
 				}
 			}.execute();
@@ -291,6 +329,16 @@ public class MessageCenterService extends Service {
 						handler.onMissingAccount();
 					}
 					centerLock.readLock().unlock();
+					return null;
+				}
+			}.execute();
+			break;
+		case CMD_SEND_MSG_TO_SERVER:
+			Log.i(TAG, "send message to server");
+			new AsyncTask<Void, Void, Void>() {
+				@Override
+				protected Void doInBackground(Void... params) {
+					sendMessageToServer(callId, msg);
 					return null;
 				}
 			}.execute();

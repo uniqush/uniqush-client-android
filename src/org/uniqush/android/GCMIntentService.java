@@ -75,6 +75,8 @@ public class GCMIntentService extends GCMBaseIntentService {
 		Set<String> extras = intent.getExtras().keySet();
 		int size = 0;
 		String msgId = "";
+		String service = "";
+		String username = "";
 		String sender = null;
 		String senderService = null;
 
@@ -83,14 +85,22 @@ public class GCMIntentService extends GCMBaseIntentService {
 
 		for (String s : extras) {
 			Log.i(TAG, "[" + s + "]=" + intent.getStringExtra(s));
-			if (s.equals("uniqush.sz")) {
-				size = Integer.parseInt(intent.getStringExtra(s));
-			} else if (s.equals("uniqush.id")) {
-				msgId = intent.getStringExtra(s);
-			} else if (s.equals("uniqush.sr")) {
-				sender = intent.getStringExtra(s);
-			} else if (s.equals("uniqush.ss")) {
-				senderService = intent.getStringExtra(s);
+			if (s.equals("uniqush.c")) {
+				String[] elems = intent.getStringExtra(s).split(",");
+				if (elems.length < 4) {
+					// This is not a valid push notification
+					return;
+				}
+				// id,size,service,username,senderService,senderUsername
+				msgId = elems[0];
+				size = Integer.parseInt(elems[1]);
+				service = elems[2];
+				username = elems[3];
+				
+				if (elems.length >= 6) {
+					senderService = elems[4];
+					sender = elems[5];
+				}
 			} else {
 				params.put(s, intent.getStringExtra(s));
 			}

@@ -110,10 +110,12 @@ public class GCMIntentService extends GCMBaseIntentService {
 		i.putExtra("c", MessageCenterService.CMD_MESSAGE_DIGEST);
 		i.putExtra("params", params);
 		i.putExtra("msgId", msgId);
+		i.putExtra("service", service);
+		i.putExtra("user", username);
 		i.putExtra("size", size);
 		if (sender != null && !sender.equals("")) {
 			i.putExtra("sender", sender);
-			i.putExtra("service", senderService);
+			i.putExtra("senderService", senderService);
 		}
 		context.startService(i);
 	}

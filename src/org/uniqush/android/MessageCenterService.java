@@ -1,5 +1,6 @@
 package org.uniqush.android;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -228,35 +229,56 @@ public class MessageCenterService extends Service {
 		}
 	}
 
-	private void sendMessageToServer(int callId, Message msg) {
-		this.connect(callId, true);
-		centerLock.readLock().lock();
-		MessageHandler h = handler;
-		if (center == null) {
-			centerLock.readLock().unlock();
-			if (callId > 0 && h != null) {
-				h.onResult(callId, new Exception("Not ready"));
-			} else if (h != null) {
-				h.onError(new Exception("Not ready to send message"));
-			}
-			return;
-		}
+	abstract class MessageCenterOpt {
+		abstract protected void opt() throws InterruptedException, IOException;
 
-		try {
-			center.sendMessageToServer(msg);
-		} catch (Exception e) {
+		public void execute(int callId) {
+			connect(callId, true);
+			centerLock.readLock().lock();
+			MessageHandler h = handler;
+			if (center == null) {
+				centerLock.readLock().unlock();
+				if (callId > 0 && h != null) {
+					h.onResult(callId, new Exception("Not ready"));
+				} else if (h != null) {
+					h.onError(new Exception("Not ready"));
+				}
+				return;
+			}
+
+			try {
+				this.opt();
+			} catch (Exception e) {
+				centerLock.readLock().unlock();
+				if (callId > 0 && h != null) {
+					h.onResult(callId, e);
+				} else if (h != null) {
+					h.onError(e);
+				}
+				return;
+			}
 			centerLock.readLock().unlock();
 			if (callId > 0 && h != null) {
-				h.onResult(callId, new Exception("Not ready"));
-			} else if (h != null) {
-				h.onError(new Exception("Not ready to send message"));
+				h.onResult(callId, null);
 			}
-			return;
 		}
-		centerLock.readLock().unlock();
-		if (callId > 0 && h != null) {
-			h.onResult(callId, null);
-		}
+	}
+
+	private void sendMessageToServer(int callId, final Message msg) {
+		new MessageCenterOpt() {
+			protected void opt() throws InterruptedException, IOException {
+				center.sendMessageToServer(msg);
+			}
+		}.execute(callId);
+	}
+	
+	private void sendMessageToUser(final int callId, final String service,
+			final String username, final Message msg, final int ttl) {
+		new MessageCenterOpt() {
+			protected void opt() throws InterruptedException, IOException {
+				center.sendMessageToUser(service, username, msg, ttl);
+			}
+		}.execute(callId);
 	}
 
 	private String getRegId() {
@@ -288,7 +310,7 @@ public class MessageCenterService extends Service {
 
 		int cmd = intent.getIntExtra("c", -1);
 		final int callId = intent.getIntExtra("id", -1);
-		final Message msg = (Message)intent.getSerializableExtra("msg");
+		final Message msg = (Message) intent.getSerializableExtra("msg");
 
 		if (cmd <= 0 || cmd >= MessageCenterService.CMD_MAX_CMD_ID) {
 			Log.i(TAG, "wrong command: " + cmd);
@@ -339,6 +361,19 @@ public class MessageCenterService extends Service {
 				@Override
 				protected Void doInBackground(Void... params) {
 					sendMessageToServer(callId, msg);
+					return null;
+				}
+			}.execute();
+			break;
+		case CMD_SEND_MSG_TO_USER:
+			Log.i(TAG, "send message to user");
+			final String receiver = intent.getStringExtra("username");
+			final String receiverService = intent.getStringExtra("service");
+			final int ttl = intent.getIntExtra("ttl", 0);
+			new AsyncTask<Void, Void, Void>() {
+				@Override
+				protected Void doInBackground(Void... params) {
+					sendMessageToUser(callId, receiverService, receiver, msg, ttl);
 					return null;
 				}
 			}.execute();

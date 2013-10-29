@@ -49,11 +49,57 @@ public class MessageCenter {
 		startService(context, MessageCenterService.CMD_CONNECT, id);
 	}
 
+	/**
+	 * Asynchronously send the message to server. The result will be reported
+	 * through the handler's onResult() method if id > 0.
+	 * 
+	 * @param context
+	 *            The context
+	 * @param id
+	 *            If id > 0, then any result (error or success) will be reported
+	 *            through the handler's onResult() method. Otherwise (i.e. id <=
+	 *            0), only error will be reported through the handler's
+	 *            onError() method.
+	 * @param msg
+	 */
 	public static void sendMessageToServer(Context context, int id, Message msg) {
 		Log.i(TAG, "send message to server: " + id);
 		Intent intent = new Intent(context, MessageCenterService.class);
 		intent.putExtra("c", MessageCenterService.CMD_SEND_MSG_TO_SERVER);
 		intent.putExtra("id", id);
+		intent.putExtra("msg", msg);
+		context.startService(intent);
+	}
+
+	/**
+	 * Asynchronously send the message to another user. The result will be
+	 * reported through the handler's onResult() method if id > 0.
+	 * 
+	 * The message is actually forwarded by the server. The server may decline
+	 * the forwarding request depending on the implementation of the server.
+	 * 
+	 * @param context
+	 * @param id
+	 *            If id > 0, then any result (error or success) will be reported
+	 *            through the handler's onResult() method. Otherwise (i.e. id <=
+	 *            0), only error will be reported through the handler's
+	 *            onError() method.
+	 * @param service
+	 *            Receiver's service name.
+	 * @param username
+	 *            Receiver's user name.
+	 * @param msg
+	 * @param ttl
+	 *            Time-to-live of the message in number of seconds.
+	 */
+	public static void sendMessageToUser(Context context, int id, String service,
+			String username, Message msg, int ttl) {
+		Intent intent = new Intent(context, MessageCenterService.class);
+		intent.putExtra("c", MessageCenterService.CMD_SEND_MSG_TO_USER);
+		intent.putExtra("id", id);
+		intent.putExtra("service", service);
+		intent.putExtra("username", username);
+		intent.putExtra("ttl", ttl);
 		intent.putExtra("msg", msg);
 		context.startService(intent);
 	}

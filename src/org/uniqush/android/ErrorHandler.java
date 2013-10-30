@@ -51,12 +51,14 @@ class ErrorHandler implements MessageHandler {
 
 	@Override
 	public void onClosed() {
+		MessageCenter.stop(context, 0);
 		handler.onClosed();
 	}
 
 	@Override
 	public void onError(Exception e) {
 		MessageCenter.stop(context, 0);
+		handler.onError(e);
 	}
 
 	@Override

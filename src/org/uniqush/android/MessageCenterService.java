@@ -33,9 +33,8 @@ public class MessageCenterService extends Service {
 	protected final static int CMD_UNSUBSCRIBE = 10;
 	protected final static int CMD_MESSAGE_DIGEST = 11;
 	protected final static int CMD_USER_INFO_READY = 12;
-	protected final static int CMD_STOP = 13;
-	protected final static int CMD_REGID_READY = 14;
-	protected final static int CMD_MAX_CMD_ID = 15;
+	protected final static int CMD_REGID_READY = 13;
+	protected final static int CMD_MAX_CMD_ID = 14;
 
 	private UserInfoProvider userInfoProvider;
 	private Lock userInfoProviderLock;
@@ -422,21 +421,16 @@ public class MessageCenterService extends Service {
 					if (intent.hasExtra("sender")) {
 						String sender = intent.getStringExtra("sender");
 						String senderService = intent.getStringExtra("service");
-						hd.onMessageDigestFromUser(service, user,
+						hd.onMessageDigestFromUser(false, service, user,
 								senderService, sender, size, msgId, params);
 					} else {
-						hd.onMessageDigestFromServer(service, user, size,
+						hd.onMessageDigestFromServer(false, service, user, size,
 								msgId, params);
 					}
 					return null;
 				}
 			}.execute();
 			break;
-		case CMD_STOP:
-			Log.i(TAG, "STOP");
-			this.disconnect();
-			this.stopSelf();
-			return START_NOT_STICKY;
 		}
 
 		return START_STICKY;

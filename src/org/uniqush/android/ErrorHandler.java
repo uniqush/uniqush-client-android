@@ -30,17 +30,17 @@ class ErrorHandler implements MessageHandler {
 	}
 
 	@Override
-	public void onMessageDigestFromServer(String dstService, String dstUser,
+	public void onMessageDigestFromServer(boolean online, String dstService, String dstUser,
 			int size, String id, Map<String, String> parameters) {
-		handler.onMessageDigestFromServer(dstService, dstUser, size, id,
+		handler.onMessageDigestFromServer(online, dstService, dstUser, size, id,
 				parameters);
 	}
 
 	@Override
-	public void onMessageDigestFromUser(String dstService, String dstUser,
+	public void onMessageDigestFromUser(boolean online, String dstService, String dstUser,
 			String srcService, String srcUser, int size, String id,
 			Map<String, String> parameters) {
-		handler.onMessageDigestFromUser(dstService, dstUser, srcService,
+		handler.onMessageDigestFromUser(online, dstService, dstUser, srcService,
 				srcUser, size, id, parameters);
 	}
 

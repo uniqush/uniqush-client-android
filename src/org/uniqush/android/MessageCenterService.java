@@ -248,7 +248,15 @@ public class MessageCenterService extends Service {
 
 			try {
 				this.opt();
-			} catch (Exception e) {
+			} catch (IOException e) {
+				centerLock.readLock().unlock();
+				if (callId > 0 && h != null) {
+					h.onResult(callId, e);
+				} else if (h != null) {
+					h.onError(e);
+				}
+				return;
+			} catch (InterruptedException e) {
 				centerLock.readLock().unlock();
 				if (callId > 0 && h != null) {
 					h.onResult(callId, e);

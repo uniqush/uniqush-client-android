@@ -1,6 +1,7 @@
 package org.uniqush.android;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -287,6 +288,22 @@ public class MessageCenterService extends Service {
 		}.execute(callId);
 	}
 
+	private void requestSingleMessage(final int callId, final String mid) {
+		new MessageCenterOpt() {
+			protected void opt() throws InterruptedException, IOException {
+				center.requestMessage(mid);
+			}
+		}.execute(callId);
+	}
+
+	private void requestMessages(final int callId, final Date since) {
+		new MessageCenterOpt() {
+			protected void opt() throws InterruptedException, IOException {
+				center.requestAllSince(since);
+			}
+		}.execute(callId);
+	}
+
 	private String getRegId() {
 		userInfoProviderLock.lock();
 		String regId = GCMRegistrar.getRegistrationId(this);
@@ -404,7 +421,7 @@ public class MessageCenterService extends Service {
 			final MessageHandler hd = userInfoProvider.getMessageHandler(
 					service, user);
 			userInfoProviderLock.unlock();
-			
+
 			if (hd == null) {
 				break;
 			}
@@ -424,9 +441,31 @@ public class MessageCenterService extends Service {
 						hd.onMessageDigestFromUser(false, service, user,
 								senderService, sender, size, msgId, params);
 					} else {
-						hd.onMessageDigestFromServer(false, service, user, size,
-								msgId, params);
+						hd.onMessageDigestFromServer(false, service, user,
+								size, msgId, params);
 					}
+					return null;
+				}
+			}.execute();
+			break;
+		case CMD_REQUEST_MSG:
+			new AsyncTask<Void, Void, Void>() {
+				@Override
+				protected Void doInBackground(Void... params) {
+					String mid = intent.getStringExtra("mid");
+					if (mid != null && mid.length() > 0) {
+						requestSingleMessage(callId, mid);
+					}
+					return null;
+				}
+			}.execute();
+			break;
+		case CMD_REQUEST_ALL_CACHED_MSG:
+			new AsyncTask<Void, Void, Void>() {
+				@Override
+				protected Void doInBackground(Void... params) {
+					Date since = (Date)intent.getSerializableExtra("since");
+					requestMessages(callId, since);
 					return null;
 				}
 			}.execute();

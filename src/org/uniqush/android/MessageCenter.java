@@ -1,5 +1,7 @@
 package org.uniqush.android;
 
+import java.util.Date;
+
 import org.uniqush.client.Message;
 
 import com.google.android.gcm.GCMRegistrar;
@@ -101,6 +103,22 @@ public class MessageCenter {
 		intent.putExtra("username", username);
 		intent.putExtra("ttl", ttl);
 		intent.putExtra("msg", msg);
+		context.startService(intent);
+	}
+	
+	public static void requestMessages(Context context, int id, String msgId) {
+		Intent intent = new Intent(context, MessageCenterService.class);
+		intent.putExtra("c", MessageCenterService.CMD_REQUEST_MSG);
+		intent.putExtra("id", id);
+		intent.putExtra("mid", msgId);
+		context.startService(intent);
+	}
+
+	public static void requestMessages(Context context, int id, Date since) {
+		Intent intent = new Intent(context, MessageCenterService.class);
+		intent.putExtra("c", MessageCenterService.CMD_REQUEST_ALL_CACHED_MSG);
+		intent.putExtra("id", id);
+		intent.putExtra("since", since);
 		context.startService(intent);
 	}
 

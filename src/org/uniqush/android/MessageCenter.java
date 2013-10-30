@@ -106,6 +106,7 @@ public class MessageCenter {
 
 	public static void stop(Context context, int id) {
 		Log.i(TAG, "stop: " + id);
-		startService(context, MessageCenterService.CMD_STOP, id);
+		Intent intent = new Intent(context, MessageCenterService.class);
+		context.stopService(intent);
 	}
 }

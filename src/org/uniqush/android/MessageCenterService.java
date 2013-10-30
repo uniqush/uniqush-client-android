@@ -158,7 +158,7 @@ public class MessageCenterService extends Service {
 		readerThread = new Thread(this.center);
 		readerThread.start();
 		currentConn = cinfo;
-		handler = msgHandler;
+		handler = new ErrorHandler(this, msgHandler);
 		centerLock.writeLock().unlock();
 
 		Log.i(TAG, "connected");

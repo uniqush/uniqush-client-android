@@ -110,8 +110,7 @@ public class MessageCenterService extends Service {
 		}
 		ConnectionInfo cinfo = this.userInfoProvider.getConnectionInfo();
 		MessageHandler msgHandler = this.userInfoProvider.getMessageHandler(
-				cinfo.getHostName(), cinfo.getPort(), cinfo.getServiceName(),
-				cinfo.getUserName());
+				cinfo.getServiceName(), cinfo.getUserName());
 		UserInfoProvider uip = this.userInfoProvider;
 		userInfoProviderLock.unlock();
 
@@ -279,7 +278,7 @@ public class MessageCenterService extends Service {
 			}
 		}.execute(callId);
 	}
-	
+
 	private void sendMessageToUser(final int callId, final String service,
 			final String username, final Message msg, final int ttl) {
 		new MessageCenterOpt() {
@@ -309,7 +308,7 @@ public class MessageCenterService extends Service {
 	}
 
 	@Override
-	public int onStartCommand(Intent intent, int flags, int startId) {
+	public int onStartCommand(final Intent intent, int flags, int startId) {
 		super.onStartCommand(intent, flags, startId);
 		if (intent == null) {
 			this.stopSelf();
@@ -375,13 +374,60 @@ public class MessageCenterService extends Service {
 			break;
 		case CMD_SEND_MSG_TO_USER:
 			Log.i(TAG, "send message to user");
-			final String receiver = intent.getStringExtra("username");
-			final String receiverService = intent.getStringExtra("service");
-			final int ttl = intent.getIntExtra("ttl", 0);
 			new AsyncTask<Void, Void, Void>() {
 				@Override
 				protected Void doInBackground(Void... params) {
-					sendMessageToUser(callId, receiverService, receiver, msg, ttl);
+					final String receiver = intent.getStringExtra("username");
+					final String receiverService = intent
+							.getStringExtra("service");
+					final int ttl = intent.getIntExtra("ttl", 0);
+					sendMessageToUser(callId, receiverService, receiver, msg,
+							ttl);
+					return null;
+				}
+			}.execute();
+			break;
+		case CMD_MESSAGE_DIGEST:
+			final String service = intent.getStringExtra("service");
+			final String user = intent.getStringExtra("user");
+
+			userInfoProviderLock.lock();
+			if (userInfoProvider == null) {
+				userInfoProvider = ResourceManager.getUserInfoProvider(this);
+				if (userInfoProvider == null) {
+					Log.wtf(TAG,
+							"UserInfoProvider is missing. call MessageCenter.init() first!");
+					userInfoProviderLock.unlock();
+					break;
+				}
+			}
+
+			final MessageHandler hd = userInfoProvider.getMessageHandler(
+					service, user);
+			userInfoProviderLock.unlock();
+			
+			if (hd == null) {
+				break;
+			}
+
+			new AsyncTask<Void, Void, Void>() {
+				@SuppressWarnings("unchecked")
+				@Override
+				protected Void doInBackground(Void... ignored) {
+					String msgId = intent.getStringExtra("msgId");
+					int size = intent.getIntExtra("size", 0);
+					HashMap<String, String> params = ((HashMap<String, String>) intent
+							.getSerializableExtra("params"));
+
+					if (intent.hasExtra("sender")) {
+						String sender = intent.getStringExtra("sender");
+						String senderService = intent.getStringExtra("service");
+						hd.onMessageDigestFromUser(service, user,
+								senderService, sender, size, msgId, params);
+					} else {
+						hd.onMessageDigestFromServer(service, user, size,
+								msgId, params);
+					}
 					return null;
 				}
 			}.execute();

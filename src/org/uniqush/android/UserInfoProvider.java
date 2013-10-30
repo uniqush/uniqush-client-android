@@ -33,12 +33,9 @@ public interface UserInfoProvider extends CredentialProvider {
 	 * More precisely, with same arguments, this method should return same (or
 	 * equivalent) handler
 	 * 
-	 * @param host
-	 * @param port
 	 * @param service
 	 * @param username
 	 * @return The corresponding message handler.
 	 */
-	public MessageHandler getMessageHandler(String host, int port,
-			String service, String username);
+	public MessageHandler getMessageHandler(String service, String username);
 }

@@ -77,6 +77,7 @@ public class GCMIntentService extends GCMBaseIntentService {
 		String msgId = "";
 		String service = "";
 		String username = "";
+		String senderid = ""; // GCM Related stuff. should we consider it?
 		String sender = null;
 		String senderService = null;
 
@@ -85,7 +86,7 @@ public class GCMIntentService extends GCMBaseIntentService {
 
 		for (String s : extras) {
 			Log.i(TAG, "[" + s + "]=" + intent.getStringExtra(s));
-			if (s.equals("uniqush.c")) {
+			if (s.equals("uq.")) {
 				String[] elems = intent.getStringExtra(s).split(",");
 				if (elems.length < 4) {
 					// This is not a valid push notification
@@ -101,6 +102,8 @@ public class GCMIntentService extends GCMBaseIntentService {
 					senderService = elems[4];
 					sender = elems[5];
 				}
+			} else if (s.equals("from")) {
+				senderid = intent.getStringExtra(s);
 			} else {
 				params.put(s, intent.getStringExtra(s));
 			}
@@ -113,6 +116,7 @@ public class GCMIntentService extends GCMBaseIntentService {
 		i.putExtra("service", service);
 		i.putExtra("user", username);
 		i.putExtra("size", size);
+		i.putExtra("senderid", senderid);
 		if (sender != null && !sender.equals("")) {
 			i.putExtra("sender", sender);
 			i.putExtra("senderService", senderService);

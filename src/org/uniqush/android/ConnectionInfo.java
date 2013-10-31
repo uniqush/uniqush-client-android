@@ -64,6 +64,15 @@ public class ConnectionInfo {
 			}
 		}
 
+		if (i.digestFields == null && this.digestFields == null) {
+			return false;
+		}
+
+		if ((i.digestFields == null && this.digestFields != null)
+				|| (i.digestFields != null && this.digestFields == null)) {
+			return true;
+		}
+
 		if (i.digestFields.size() != this.digestFields.size()) {
 			return true;
 		}
@@ -188,15 +197,11 @@ public class ConnectionInfo {
 	 *            The username. User name should be less than 30 characters, and
 	 *            should not contain the following characters: '\n', '\t', ',',
 	 *            ';', ':'.
-	 * @param subscribe
-	 *            If this value is true, then it means the user wants to receive
-	 *            push notifications if he is not online.
 	 * @throws IllegalArgumentException
 	 *             when any argument is invalid.
 	 */
-	public ConnectionInfo(String host, int port, String service,
-			String username, boolean subscribe) {
-		this(host, port, service, username, subscribe, true, 1024, -1);
+	public ConnectionInfo(String host, int port, String service, String username) {
+		this(host, port, service, username, true, true, 1024, -1);
 	}
 
 	/**

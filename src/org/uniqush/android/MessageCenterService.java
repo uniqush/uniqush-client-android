@@ -8,6 +8,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import javax.security.auth.login.LoginException;
+
 import android.app.Service;
 import android.content.Intent;
 import android.os.AsyncTask;
@@ -121,47 +123,95 @@ public class MessageCenterService extends Service {
 
 		Log.i(TAG, "connect to " + cinfo.toString());
 		centerLock.writeLock().lock();
-		if (this.center != null) {
-			if (this.currentConn.equals(cinfo)) {
-				// We've already connected this server.
-				if (this.currentConn.shouldSubscribe() != cinfo
-						.shouldSubscribe()) {
-					centerLock.writeLock().unlock();
-					this.subscribe(callId, onlyReportError);
+
+		boolean subscribed = false;
+		boolean visible = true;
+		
+		if (currentConn != null) {
+			subscribed = currentConn.shouldSubscribe();
+			visible = currentConn.isVisible();
+		}
+		if (!cinfo.equals(this.currentConn)) {
+			Exception ex = null;
+			this.center = new MessageCenter(uip);
+			try {
+				this.center
+						.connect(cinfo.getHostName(), cinfo.getPort(),
+								cinfo.getServiceName(), cinfo.getUserName(),
+								msgHandler);
+			} catch (IOException e) {
+				ex = e;
+			} catch (LoginException e) {
+				ex = e;
+			} catch (InterruptedException e) {
+				ex = e;
+			}
+			if (ex != null) {
+				Log.e(TAG, "Error on connection: " + ex.toString());
+				this.center = null;
+				centerLock.writeLock().unlock();
+				if (callId >= 0) {
+					msgHandler.onResult(callId, ex);
 				} else {
-					centerLock.writeLock().unlock();
-					if (!onlyReportError && callId > 0) {
-						msgHandler.onResult(callId, null);
-					}
+					msgHandler.onError(ex);
 				}
 				return;
 			}
-			this.disconnect();
+			readerThread = new Thread(this.center);
+			readerThread.start();
+			handler = new ErrorHandler(this, msgHandler);
 		}
-
-		this.center = new MessageCenter(uip);
-		try {
-			this.center.connect(cinfo.getHostName(), cinfo.getPort(),
-					cinfo.getServiceName(), cinfo.getUserName(), msgHandler);
-		} catch (Exception e) {
-			Log.e(TAG, "Error on connection: " + e.toString());
-			this.center = null;
-			centerLock.writeLock().unlock();
-			if (callId >= 0) {
-				msgHandler.onResult(callId, e);
-			} else {
-				msgHandler.onError(e);
+		if (cinfo.shouldReconfig(currentConn)) {
+			Exception ex = null;
+			try {
+				this.center.config(cinfo.getDigestThreshold(),
+						cinfo.getCompressThreshold(), cinfo.getDigestFields());
+			} catch (IOException e) {
+				ex = e;
+			} catch (InterruptedException e) {
+				ex = e;
 			}
+			if (ex != null) {
+				Log.e(TAG, "Error on config: " + ex.toString());
+				centerLock.writeLock().unlock();
+				if (callId >= 0) {
+					msgHandler.onResult(callId, ex);
+				} else {
+					msgHandler.onError(ex);
+				}
+				return;
+			}
+		}
+		
+		currentConn = cinfo;
+		
+		if (currentConn.isVisible() != visible) {
+			Exception ex = null;
+			try {
+				this.center.setVisibility(currentConn.isVisible());
+			} catch (IOException e) {
+				ex = e;
+			} catch (InterruptedException e) {
+				ex = e;
+			}
+			
+			if (ex != null) {
+				Log.e(TAG, "Error on set visibility: " + ex.toString());
+				centerLock.writeLock().unlock();
+				if (callId >= 0) {
+					msgHandler.onResult(callId, ex);
+				} else {
+					msgHandler.onError(ex);
+				}
+				return;
+			}
+		}
+		if (currentConn.shouldSubscribe() != subscribed) {
+			centerLock.writeLock().unlock();
+			this.subscribe(callId, onlyReportError);
 			return;
 		}
-		readerThread = new Thread(this.center);
-		readerThread.start();
-		currentConn = cinfo;
-		handler = new ErrorHandler(this, msgHandler);
 		centerLock.writeLock().unlock();
-
-		Log.i(TAG, "connected");
-		this.subscribe(callId, onlyReportError);
 	}
 
 	private void subscribe(int callId, boolean onlyReportError) {

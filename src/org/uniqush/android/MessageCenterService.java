@@ -407,6 +407,19 @@ public class MessageCenterService extends Service {
 			final String service = intent.getStringExtra("service");
 			final String user = intent.getStringExtra("user");
 
+			this.centerLock.readLock().lock();
+			if (currentConn != null) {
+				// XXX
+				// The client is just invisible, it should has already received
+				// the digest.
+				if (service.equals(currentConn.getServiceName())
+						&& user.equals(currentConn.getUserName())
+						&& !currentConn.isVisible()) {
+					break;
+				}
+			}
+			this.centerLock.readLock().unlock();
+
 			userInfoProviderLock.lock();
 			if (userInfoProvider == null) {
 				userInfoProvider = ResourceManager.getUserInfoProvider(this);
@@ -464,7 +477,7 @@ public class MessageCenterService extends Service {
 			new AsyncTask<Void, Void, Void>() {
 				@Override
 				protected Void doInBackground(Void... params) {
-					Date since = (Date)intent.getSerializableExtra("since");
+					Date since = (Date) intent.getSerializableExtra("since");
 					requestMessages(callId, since);
 					return null;
 				}

@@ -17,12 +17,134 @@
 
 package org.uniqush.android;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class ConnectionInfo {
 	private String host;
 	private int port;
 	private String service;
 	private String username;
 	private boolean subscribe;
+
+	private boolean visible = true;
+	private int compressThreshold = 1024;
+	private int digestThreshold = 4096;
+	private List<String> digestFields;
+
+	public boolean isVisible() {
+		return visible;
+	}
+
+	public int getCompressThreshold() {
+		return this.compressThreshold;
+	}
+
+	public int getDigestThreshold() {
+		return this.digestThreshold;
+	}
+
+	public List<String> getDigestFields() {
+		return this.digestFields;
+	}
+
+	protected boolean shouldReconfig(ConnectionInfo i) {
+		if (i == null) {
+			return true;
+		}
+		if (!(i.compressThreshold < 0 && this.compressThreshold < 0)) {
+			if (i.compressThreshold != this.compressThreshold) {
+				return true;
+			}
+		}
+
+		if (!(i.digestThreshold < 0 && this.digestThreshold < 0)) {
+			if (i.digestThreshold != this.digestThreshold) {
+				return true;
+			}
+		}
+
+		if (i.digestFields.size() != this.digestFields.size()) {
+			return true;
+		}
+
+		// XXX We do consider order though, which is not necessary.
+		if (!i.digestFields.equals(this.digestFields)) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * 
+	 * 
+	 * @param host
+	 *            The host name of the server. Could be domain name, IP address.
+	 * @param port
+	 *            The port number of the server. port <= 0 means the default
+	 *            port: 8964.
+	 * @param service
+	 *            The service name. Service name should be less than 10
+	 *            characters, and should not contain the following characters:
+	 *            '\n', '\t', ',', ';', ':'.
+	 * @param username
+	 *            The username. User name should be less than 30 characters, and
+	 *            should not contain the following characters: '\n', '\t', ',',
+	 *            ';', ':'.
+	 * @param subscribe
+	 *            If this value is true, then it means the user wants to receive
+	 *            push notifications if he is not online.
+	 * @param visible
+	 *            If this value is false, then the client will be considered as
+	 *            offline even if there's a connection with the server. The
+	 *            client can still receive messages/digests. However, the server
+	 *            will send a push notification to all clients if there is no
+	 *            online client for the receiver.
+	 * @param compressThreshold
+	 *            > 0: If the message size is larger than the threshold, then
+	 *            the message will be compressed.
+	 * 
+	 *            =< 0: Never compress the message.
+	 * @param digestThreshold
+	 *            >= 0: If a message sent to this client is larger than the
+	 *            threshold, then a message digest will be sent rather than the
+	 *            message itself.
+	 * 
+	 *            < 0: Ask the server to always send the message itself.
+	 * @param digestFields
+	 *            If a digest of a message needs to be sent, then headers whose
+	 *            field name is in the digestFields will be sent along the
+	 *            digest as parameters.
+	 * @throws IllegalArgumentException
+	 *             when any argument is invalid.
+	 */
+	public ConnectionInfo(String host, int port, String service,
+			String username, boolean subscribe, boolean visible,
+			int compressThreshold, int digestThreshold, String... digestFields) {
+		validateServiceName(service);
+		validateUsername(username);
+		if (port <= 0) {
+			port = DEFAULT_PORT;
+		}
+
+		// TODO validate the host name
+		this.host = host;
+		this.port = port;
+		this.service = service;
+		this.username = username;
+		this.subscribe = subscribe;
+
+		this.visible = visible;
+		this.compressThreshold = compressThreshold;
+		this.digestThreshold = digestThreshold;
+		if (digestFields.length > 0) {
+			this.digestFields = new ArrayList<String>(digestFields.length);
+			for (String f : digestFields) {
+				this.digestFields.add(f);
+			}
+		}
+	}
 
 	private static final int DEFAULT_PORT = 8964;
 	private static final int MAX_SERVICE_NAME_LENGTH = 10;
@@ -74,18 +196,7 @@ public class ConnectionInfo {
 	 */
 	public ConnectionInfo(String host, int port, String service,
 			String username, boolean subscribe) {
-		validateServiceName(service);
-		validateUsername(username);
-		if (port <= 0) {
-			port = DEFAULT_PORT;
-		}
-
-		// TODO validate the host name
-		this.host = host;
-		this.port = port;
-		this.service = service;
-		this.username = username;
-		this.subscribe = subscribe;
+		this(host, port, service, username, subscribe, true, 1024, -1);
 	}
 
 	/**
@@ -123,13 +234,16 @@ public class ConnectionInfo {
 	public boolean shouldSubscribe() {
 		return subscribe;
 	}
-	
+
 	protected void unsubscribe() {
 		this.subscribe = false;
 	}
 
 	@Override
 	public boolean equals(Object obj) {
+		if (obj == null) {
+			return false;
+		}
 		if (obj instanceof ConnectionInfo) {
 			ConnectionInfo c = (ConnectionInfo) obj;
 			if (service.equals(c.service) && username.equals(c.username)
@@ -139,7 +253,7 @@ public class ConnectionInfo {
 		}
 		return false;
 	}
-	
+
 	@Override
 	public String toString() {
 		return host + ":" + port + ";" + service + "," + username;

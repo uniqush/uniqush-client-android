@@ -110,14 +110,13 @@ public class MessageCenterService extends Service {
 				return;
 			}
 		}
-		ConnectionInfo cinfo = this.userInfoProvider.getConnectionInfo();
-		MessageHandler msgHandler = this.userInfoProvider.getMessageHandler(
-				cinfo.getServiceName(), cinfo.getUserName());
 		UserInfoProvider uip = this.userInfoProvider;
 		userInfoProviderLock.unlock();
 
-		if (msgHandler == null || cinfo == null) {
-			Log.w(TAG, "msg handler or connection info is null");
+		ConnectionInfo cinfo = uip.getConnectionInfo();
+
+		if (cinfo == null) {
+			Log.w(TAG, "connection info is null");
 			return;
 		}
 
@@ -133,6 +132,11 @@ public class MessageCenterService extends Service {
 		}
 		if (!cinfo.equals(this.currentConn)) {
 			Exception ex = null;
+			MessageHandler msgHandler = uip.getMessageHandler(
+				cinfo.getServiceName(), cinfo.getUserName());
+			if (msgHandler == null) {
+				Log.e(TAG, "message handler is null");
+			}
 			this.center = new MessageCenter(uip);
 			try {
 				this.center
@@ -160,9 +164,19 @@ public class MessageCenterService extends Service {
 			readerThread = new Thread(this.center);
 			readerThread.start();
 			handler = new ErrorHandler(this, msgHandler);
+			Log.i(TAG, "connected");
+		}
+		if (this.handler == null) {
+			MessageHandler msgHandler = uip.getMessageHandler(
+				cinfo.getServiceName(), cinfo.getUserName());
+			if (msgHandler == null) {
+				Log.e(TAG, "message handler is null");
+			}
+			handler = new ErrorHandler(this, msgHandler);
 		}
 		if (cinfo.shouldReconfig(currentConn)) {
 			Exception ex = null;
+			Log.i(TAG, "should config");
 			try {
 				this.center.config(cinfo.getDigestThreshold(),
 						cinfo.getCompressThreshold(), cinfo.getDigestFields());
@@ -175,9 +189,9 @@ public class MessageCenterService extends Service {
 				Log.e(TAG, "Error on config: " + ex.toString());
 				centerLock.writeLock().unlock();
 				if (callId >= 0) {
-					msgHandler.onResult(callId, ex);
+					handler.onResult(callId, ex);
 				} else {
-					msgHandler.onError(ex);
+					handler.onError(ex);
 				}
 				return;
 			}
@@ -186,6 +200,7 @@ public class MessageCenterService extends Service {
 		currentConn = cinfo;
 		
 		if (currentConn.isVisible() != visible) {
+			Log.i(TAG, "set visibility");
 			Exception ex = null;
 			try {
 				this.center.setVisibility(currentConn.isVisible());
@@ -199,15 +214,16 @@ public class MessageCenterService extends Service {
 				Log.e(TAG, "Error on set visibility: " + ex.toString());
 				centerLock.writeLock().unlock();
 				if (callId >= 0) {
-					msgHandler.onResult(callId, ex);
+					handler.onResult(callId, ex);
 				} else {
-					msgHandler.onError(ex);
+					handler.onError(ex);
 				}
 				return;
 			}
 		}
 		if (currentConn.shouldSubscribe() != subscribed) {
 			centerLock.writeLock().unlock();
+			Log.i(TAG, "set subscription");
 			this.subscribe(callId, onlyReportError);
 			return;
 		}

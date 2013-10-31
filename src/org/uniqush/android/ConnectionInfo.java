@@ -236,7 +236,7 @@ public class ConnectionInfo {
 	 * @return returns true if the user wants to receive push notifications when
 	 *         he is offline.
 	 */
-	public boolean shouldSubscribe() {
+	protected boolean shouldSubscribe() {
 		return subscribe;
 	}
 
